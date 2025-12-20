@@ -15,7 +15,9 @@ export default function Deployment() {
     { time: "22:45:15", type: "info", msg: "Building frontend assets..." },
     { time: "22:45:45", type: "success", msg: "Build completed successfully" },
     { time: "22:45:46", type: "info", msg: "Deploying to Edge Network..." },
-    { time: "22:46:01", type: "success", msg: "Deployment complete: https://train.shakerpd.com" },
+    { time: "22:46:01", type: "success", msg: "Deployment complete: https://training-system-shaker.vercel.app" },
+    { time: "23:05:12", type: "info", msg: "Manual deployment triggered via Vercel CLI" },
+    { time: "23:05:45", type: "success", msg: "Production updated to commit ec8ee52" },
   ];
 
   return (
@@ -29,9 +31,9 @@ export default function Deployment() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className="bg-blue-500 hover:bg-blue-600">
-              <div className="w-2 h-2 rounded-full bg-white mr-2 animate-pulse" />
-              Building
+            <Badge className="bg-green-500 hover:bg-green-600">
+              <div className="w-2 h-2 rounded-full bg-white mr-2" />
+              Live
             </Badge>
           </div>
         </div>
@@ -44,7 +46,7 @@ export default function Deployment() {
               </div>
               <div>
                 <div className="font-bold">Production</div>
-                <div className="text-xs text-muted-foreground">train.shakerpd.com</div>
+                <div className="text-xs text-muted-foreground">training-system-shaker.vercel.app</div>
               </div>
             </div>
           </StatusCard>
