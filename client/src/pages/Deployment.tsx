@@ -18,6 +18,8 @@ export default function Deployment() {
     { time: "22:46:01", type: "success", msg: "Deployment complete: https://training-system-shaker.vercel.app" },
     { time: "23:05:12", type: "info", msg: "Manual deployment triggered via Vercel CLI" },
     { time: "23:05:45", type: "success", msg: "Production updated to commit ec8ee52" },
+    { time: "23:12:55", type: "warning", msg: "Detected missing RLS policy for training_courses" },
+    { time: "23:13:10", type: "success", msg: "Applied RLS policy: Enable read access for all users" },
   ];
 
   return (
