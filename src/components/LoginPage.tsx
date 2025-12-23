@@ -40,23 +40,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
-  const demoCredentials = [{
-    badge: '1001',
-    role: 'Administrator',
-    name: 'Capt. Mitchell'
-  }, {
-    badge: '2045',
-    role: 'Supervisor',
-    name: 'Sgt. Rodriguez'
-  }, {
-    badge: '3078',
-    role: 'Officer',
-    name: 'Off. Chen'
-  }, {
-    badge: '4092',
-    role: 'Accounting',
-    name: 'E. Thompson'
-  }];
+
 
   return (
     <div className="min-h-screen flex" data-mixed-content="true">
@@ -173,24 +157,11 @@ const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <p className="text-xs text-slate-500 text-center mb-4">Demo Credentials (password: 1234)</p>
-              <div className="grid grid-cols-2 gap-2">
-                {demoCredentials.map(cred => (
-                  <button 
-                    key={cred.badge} 
-                    onClick={() => {
-                      setBadgeNumber(cred.badge);
-                      setPassword('1234');
-                    }} 
-                    className="text-left p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
-                  >
-                    <div className="text-xs font-semibold text-slate-700">{cred.role}</div>
-                    <div className="text-xs text-slate-500">Badge: {cred.badge}</div>
-                  </button>
-                ))}
-              </div>
+            {/* Password Change Notice */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <p className="text-xs text-slate-500 text-center">
+                Please change your password after your first login.
+              </p>
             </div>
           </div>
 

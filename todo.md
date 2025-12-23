@@ -5,3 +5,6 @@
 
 ## Deployment Issues
 - [x] Fix build configuration for production deployment (MODULE_NOT_FOUND error)
+
+## UI Updates
+- [x] Hide demo credentials from login page (keep only password change notice)
