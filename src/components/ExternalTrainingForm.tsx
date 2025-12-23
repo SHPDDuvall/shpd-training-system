@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { externalTrainingService, notificationService } from '@/lib/database';
 import { ExternalTrainingRequest } from '@/types';
+import { supabase } from '@/lib/supabase';
 import {
   CalendarIcon,
   LocationIcon,
@@ -30,6 +31,12 @@ const ExternalTrainingForm: React.FC = () => {
   const [justification, setJustification] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
@@ -52,6 +59,12 @@ const ExternalTrainingForm: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Upload image if provided
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+      }
+
       const newRequest = await externalTrainingService.create({
         userId: user.id,
         eventName,
@@ -62,6 +75,7 @@ const ExternalTrainingForm: React.FC = () => {
         costEstimate: parseFloat(costEstimate) || 0,
         justification,
         notes,
+        imageUrl,
       });
 
       if (newRequest) {
@@ -84,6 +98,50 @@ const ExternalTrainingForm: React.FC = () => {
     }
   };
 
+  // Handle image selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Upload image to Supabase storage
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploadingImage(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+      const filePath = `external-training/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('training-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('training-images')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const resetForm = () => {
     setEventName('');
     setOrganization('');
@@ -93,6 +151,8 @@ const ExternalTrainingForm: React.FC = () => {
     setCostEstimate('');
     setJustification('');
     setNotes('');
+    setImageFile(null);
+    setImagePreview(null);
     setShowForm(false);
   };
 
@@ -311,6 +371,54 @@ const ExternalTrainingForm: React.FC = () => {
                   placeholder="Any additional information..."
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors resize-none"
                 />
+              </div>
+
+              {/* Event Image */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Event Image (Optional)
+                </label>
+                <div className="space-y-3">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  {imagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Event preview"
+                        className="w-full h-48 object-cover rounded-lg border border-slate-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          if (imageInputRef.current) {
+                            imageInputRef.current.value = '';
+                          }
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                      >
+                        <CloseIcon size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full px-4 py-8 border-2 border-dashed border-slate-300 rounded-lg hover:border-amber-500 hover:bg-amber-50/50 transition-colors flex flex-col items-center gap-2 text-slate-600 hover:text-amber-600"
+                    >
+                      <DocumentIcon size={32} />
+                      <span className="font-medium">Click to upload event image</span>
+                      <span className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Actions */}

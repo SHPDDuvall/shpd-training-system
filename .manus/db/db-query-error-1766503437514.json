@@ -1,0 +1,18 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS external_training_requests (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  event_name TEXT NOT NULL,\n  organization TEXT NOT NULL,\n  start_date DATE NOT NULL,\n  end_date DATE NOT NULL,\n  location TEXT NOT NULL,\n  cost_estimate DECIMAL(10, 2) DEFAULT 0,\n  justification TEXT NOT NULL,\n  image_url TEXT,\n  status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'supervisor_review', 'admin_approval', 'approved', 'denied', 'completed')),\n  submitted_date DATE NOT NULL,\n  supervisor_id UUID REFERENCES users(id),\n  supervisor_name TEXT,\n  supervisor_approval_date DATE,\n  admin_id UUID REFERENCES users(id),\n  admin_name TEXT,\n  admin_approval_date DATE,\n  notes TEXT,\n  denial_reason TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2VTxW2kPBSU1Ndo.9127c2f59f25 --database ndfAujFsXXKwAAybx4m566 --execute CREATE TABLE IF NOT EXISTS external_training_requests (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  event_name TEXT NOT NULL,\n  organization TEXT NOT NULL,\n  start_date DATE NOT NULL,\n  end_date DATE NOT NULL,\n  location TEXT NOT NULL,\n  cost_estimate DECIMAL(10, 2) DEFAULT 0,\n  justification TEXT NOT NULL,\n  image_url TEXT,\n  status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'supervisor_review', 'admin_approval', 'approved', 'denied', 'completed')),\n  submitted_date DATE NOT NULL,\n  supervisor_id UUID REFERENCES users(id),\n  supervisor_name TEXT,\n  supervisor_approval_date DATE,\n  admin_id UUID REFERENCES users(id),\n  admin_name TEXT,\n  admin_approval_date DATE,\n  notes TEXT,\n  denial_reason TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 2 column 10 near \"UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+    "  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,",
+    "  event_name TEXT NOT NULL,",
+    "  organization TEXT NOT NULL,",
+    "  start_date DATE NOT NULL,",
+    "  end_date DATE NOT NULL,",
+    "  location TEXT NOT NULL,",
+    "  cost_estimate DECIMAL(10, 2) DEFAULT 0,",
+    "  justification TEXT NOT NULL,",
+    "  image_url TEXT,",
+    "  status TEXT NOT NULL DEFAULT"
+  ]
+}
