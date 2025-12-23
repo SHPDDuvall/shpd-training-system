@@ -7,6 +7,11 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: [".manusvm.computer"],
+  },
+  build: {
+    outDir: "dist/public",
+    emptyOutDir: true,
   },
   plugins: [
     react()
