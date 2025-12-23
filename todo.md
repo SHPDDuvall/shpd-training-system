@@ -8,3 +8,6 @@
 
 ## UI Updates
 - [x] Hide demo credentials from login page (keep only password change notice)
+
+## Bug Fixes
+- [x] Restore dynamic training course count on login page (was showing "7", now hardcoded "15+")

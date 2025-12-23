@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LockIcon, EyeIcon, EyeOffIcon, AlertIcon, BadgeIcon } from '@/components/icons/Icons';
+import { supabase } from '@/lib/supabase';
 const heroImage = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765898244738_e941034a.jpg';
 
 const shpdLogo = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765897849387_330bdaab.png';
@@ -20,6 +21,17 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [courseCount, setCourseCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchCourseCount = async () => {
+      const { count } = await supabase
+        .from('training_courses')
+        .select('*', { count: 'exact', head: true });
+      setCourseCount(count || 0);
+    };
+    fetchCourseCount();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +79,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="text-3xl font-bold text-amber-400">15+</div>
+              <div className="text-3xl font-bold text-amber-400">{courseCount}</div>
               <div className="text-slate-300 text-sm">Training Courses</div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
