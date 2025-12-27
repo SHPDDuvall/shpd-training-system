@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && tsc server/index.ts --outDir dist --module esnext --target es2020 --moduleResolution bundler --esModuleInterop",
+    "build:client": "vite build",
+    "build:server": "tsc server/index.ts --outDir dist --module esnext --target es2020 --moduleResolution bundler --esModuleInterop",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -47,6 +50,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
+    "express": "^5.2.1",
     "highlight.js": "^11.9.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
@@ -71,7 +75,8 @@
     "@eslint/js": "^9.9.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.16",
-    "@types/node": "^22.5.5",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.3",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
