@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LockIcon, EyeIcon, EyeOffIcon, AlertIcon, BadgeIcon } from '@/components/icons/Icons';
-import { supabase } from '@/lib/supabase';
 const heroImage = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765898244738_e941034a.jpg';
 
 const shpdLogo = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765897849387_330bdaab.png';
@@ -21,17 +20,6 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [courseCount, setCourseCount] = useState<number>(0);
-
-  useEffect(() => {
-    const fetchCourseCount = async () => {
-      const { count } = await supabase
-        .from('training_courses')
-        .select('*', { count: 'exact', head: true });
-      setCourseCount(count || 0);
-    };
-    fetchCourseCount();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +40,23 @@ const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
-
+  const demoCredentials = [{
+    badge: '1001',
+    role: 'Administrator',
+    name: 'Capt. Mitchell'
+  }, {
+    badge: '2045',
+    role: 'Supervisor',
+    name: 'Sgt. Rodriguez'
+  }, {
+    badge: '3078',
+    role: 'Officer',
+    name: 'Off. Chen'
+  }, {
+    badge: '4092',
+    role: 'Accounting',
+    name: 'E. Thompson'
+  }];
 
   return (
     <div className="min-h-screen flex" data-mixed-content="true">
@@ -79,7 +83,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="text-3xl font-bold text-amber-400">{courseCount}</div>
+              <div className="text-3xl font-bold text-amber-400">15+</div>
               <div className="text-slate-300 text-sm">Training Courses</div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
@@ -169,11 +173,24 @@ const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </form>
 
-            {/* Password Change Notice */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <p className="text-xs text-slate-500 text-center">
-                Please change your password after your first login.
-              </p>
+            {/* Demo Credentials */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <p className="text-xs text-slate-500 text-center mb-4">Demo Credentials (password: 1234)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {demoCredentials.map(cred => (
+                  <button 
+                    key={cred.badge} 
+                    onClick={() => {
+                      setBadgeNumber(cred.badge);
+                      setPassword('1234');
+                    }} 
+                    className="text-left p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="text-xs font-semibold text-slate-700">{cred.role}</div>
+                    <div className="text-xs text-slate-500">Badge: {cred.badge}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

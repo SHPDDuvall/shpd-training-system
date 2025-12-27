@@ -1,8 +1,0 @@
-{
-  "query": "ALTER TABLE external_training_requests ADD COLUMN IF NOT EXISTS image_url TEXT;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2VTxW2kPBSU1Ndo.9127c2f59f25 --database ndfAujFsXXKwAAybx4m566 --execute ALTER TABLE external_training_requests ADD COLUMN IF NOT EXISTS image_url TEXT;",
-  "returncode": 1,
-  "logs": [
-    "ERROR 1146 (42S02) at line 1: Table 'ndfaujfsxxkwaaybx4m566.external_training_requests' doesn't exist"
-  ]
-}

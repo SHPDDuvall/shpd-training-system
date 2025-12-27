@@ -207,7 +207,6 @@ export interface ExternalTrainingRequest {
   location: string;
   costEstimate: number;
   justification: string;
-  imageUrl?: string;
   status: ExternalTrainingStatus;
   submittedDate: string;
   supervisorId?: string;
