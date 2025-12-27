@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LockIcon, EyeIcon, EyeOffIcon, AlertIcon, BadgeIcon } from '@/components/icons/Icons';
+import { supabase } from '@/lib/supabase';
 const heroImage = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765898244738_e941034a.jpg';
 
 const shpdLogo = 'https://d64gsuwffb70l.cloudfront.net/68e12fc2c4a3a6a769b60461_1765897849387_330bdaab.png';
@@ -20,6 +21,18 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [trainingCount, setTrainingCount] = useState<number>(0);
+
+  useEffect(() => {
+    // Fetch training count from Supabase
+    const fetchTrainingCount = async () => {
+      const { count } = await supabase
+        .from('training_courses')
+        .select('*', { count: 'exact', head: true });
+      setTrainingCount(count || 0);
+    };
+    fetchTrainingCount();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +96,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="text-3xl font-bold text-amber-400">15+</div>
+              <div className="text-3xl font-bold text-amber-400">{trainingCount}+</div>
               <div className="text-slate-300 text-sm">Training Courses</div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
@@ -173,23 +186,13 @@ const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <p className="text-xs text-slate-500 text-center mb-4">Demo Credentials (password: 1234)</p>
-              <div className="grid grid-cols-2 gap-2">
-                {demoCredentials.map(cred => (
-                  <button 
-                    key={cred.badge} 
-                    onClick={() => {
-                      setBadgeNumber(cred.badge);
-                      setPassword('1234');
-                    }} 
-                    className="text-left p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
-                  >
-                    <div className="text-xs font-semibold text-slate-700">{cred.role}</div>
-                    <div className="text-xs text-slate-500">Badge: {cred.badge}</div>
-                  </button>
-                ))}
+            {/* Password Change Notice */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <AlertIcon size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700">
+                  <strong>First-time login:</strong> Please change your password immediately after signing in. Contact your supervisor if you need password assistance.
+                </p>
               </div>
             </div>
           </div>
