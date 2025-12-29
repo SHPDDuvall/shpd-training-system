@@ -62,6 +62,12 @@ const Profile: React.FC = () => {
   const [trainingReminders, setTrainingReminders] = useState(true);
   const [approvalAlerts, setApprovalAlerts] = useState(true);
 
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   useEffect(() => {
     if (user) {
       loadCertificates();
@@ -112,6 +118,64 @@ const Profile: React.FC = () => {
   const handleSaveNotifications = (e: React.FormEvent) => {
     e.preventDefault();
     showToast('Notification preferences saved!');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setPasswordError('New password must be at least 4 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('New password must be different from current password');
+      return;
+    }
+
+    try {
+      // Verify current password by attempting to login
+      const { supabase } = await import('@/lib/supabase');
+      const { data: users } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!users || users.password_hash !== currentPassword) {
+        setPasswordError('Current password is incorrect');
+        return;
+      }
+
+      // Update password
+      const { error } = await supabase
+        .from('users')
+        .update({ password_hash: newPassword })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('Password changed successfully!');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setPasswordError('Failed to change password. Please try again.');
+    }
   };
 
   const showToast = (message: string) => {
@@ -762,17 +826,71 @@ const Profile: React.FC = () => {
 
           {activeTab === 'security' && (
             <div className="space-y-6">
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <AlertIcon className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
-                  <div>
-                    <h4 className="font-medium text-amber-800">Password Management</h4>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Password changes must be requested through IT Support. Contact your system administrator for assistance.
-                    </p>
+              {/* Password Change Form */}
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Change Password</h3>
+                  
+                  {passwordError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                      <div className="flex items-start gap-2">
+                        <AlertIcon className="text-red-600 flex-shrink-0 mt-0.5" size={16} />
+                        <p className="text-sm text-red-700">{passwordError}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Current Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        New Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter new password (min. 4 characters)"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Confirm New Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Confirm new password"
+                      />
+                    </div>
                   </div>
+
+                  <button
+                    type="submit"
+                    className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Change Password
+                  </button>
                 </div>
-              </div>
+              </form>
+
+              <div className="border-t border-slate-200 pt-6"></div>
 
               <div className="space-y-4">
                 <div className="p-4 bg-slate-50 rounded-lg">
