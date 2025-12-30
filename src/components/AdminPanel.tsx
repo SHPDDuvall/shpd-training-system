@@ -6,6 +6,7 @@ import { TrainingOpportunity, User } from '@/types';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
 import AttendanceTracking from '@/components/AttendanceTracking';
 import CustomTrainingRequestTab from '@/components/CustomTrainingRequestTab';
+import BudgetManagement from '@/components/BudgetManagement';
 import {
   AdminIcon,
   UsersIcon,
@@ -29,6 +30,7 @@ import {
   ClipboardCheckIcon,
   CameraIcon,
   CustomRequestIcon,
+  AccountingIcon,
 } from '@/components/icons/Icons';
 
 
@@ -52,7 +54,7 @@ const AdminPanel: React.FC = () => {
   const { allRequests, allUsers, createUser, refreshUsers, updateUser, resetUserPassword, deleteUser } = useAuth();
   const [trainings, setTrainings] = useState<TrainingOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'training' | 'attendance' | 'custom'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'training' | 'attendance' | 'custom' | 'budget'>('overview');
 
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -936,6 +938,7 @@ const AdminPanel: React.FC = () => {
     { id: 'users', label: 'Users', icon: UsersIcon },
     { id: 'training', label: 'Training', icon: TrainingIcon },
     { id: 'custom', label: 'Custom Requests', icon: CustomRequestIcon },
+    { id: 'budget', label: 'Budget Management', icon: AccountingIcon },
   ];
 
 
@@ -1309,6 +1312,10 @@ const AdminPanel: React.FC = () => {
 
           {activeTab === 'custom' && (
             <CustomTrainingRequestTab />
+          )}
+
+          {activeTab === 'budget' && (
+            <BudgetManagement />
           )}
 
         </div>
