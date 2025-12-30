@@ -43,6 +43,10 @@ const mockBudgetData = {
     { category: 'Legal', allocated: 15000, spent: 12800 },
     { category: 'Leadership', allocated: 22500, spent: 14300 },
     { category: 'Investigation', allocated: 25000, spent: 11000 },
+    { category: 'Domestic Violence', allocated: 0, spent: 0 },
+    { category: 'Officer Trauma & Wellness', allocated: 0, spent: 0 },
+    { category: 'Vehicle Dynamics', allocated: 0, spent: 0 },
+    { category: 'Report Writing', allocated: 0, spent: 0 },
   ],
   monthlySpending: [
     { month: 'Jul', amount: 18500 },
