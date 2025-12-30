@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { mockUsers, mockTrainingOpportunities, mockTrainingRequests } from '@/data/mockData';
 import {
   BarChartIcon,
@@ -63,6 +64,54 @@ const ReportingDashboard: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('All');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('year');
   const [activeTab, setActiveTab] = useState<'overview' | 'compliance' | 'certificates' | 'budget'>('overview');
+  const [budgetData, setBudgetData] = useState(mockBudgetData);
+  const [isLoadingBudget, setIsLoadingBudget] = useState(false);
+
+  // Fetch budget data from database
+  const fetchBudgetData = async () => {
+    setIsLoadingBudget(true);
+    try {
+      const { data, error } = await supabase
+        .from('training_budgets')
+        .select('*')
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Calculate totals
+        const totalAllocated = data.reduce((sum, cat) => sum + (cat.allocated || 0), 0);
+        const totalSpent = data.reduce((sum, cat) => sum + (cat.spent || 0), 0);
+        const totalRemaining = totalAllocated - totalSpent;
+
+        // Format data for display
+        const byCategory = data.map(cat => ({
+          category: cat.category,
+          allocated: cat.allocated || 0,
+          spent: cat.spent || 0,
+        }));
+
+        setBudgetData({
+          totalBudget: totalAllocated + totalRemaining,
+          allocated: totalAllocated,
+          spent: totalSpent,
+          remaining: totalRemaining,
+          byCategory,
+          monthlySpending: budgetData.monthlySpending, // Keep mock monthly data for now
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching budget data:', error);
+      // Keep using mock data on error
+    } finally {
+      setIsLoadingBudget(false);
+    }
+  };
+
+  // Fetch budget data on mount
+  useEffect(() => {
+    fetchBudgetData();
+  }, []);
 
   // Get unique departments
   const departments = useMemo(() => {
@@ -260,10 +309,10 @@ const ReportingDashboard: React.FC = () => {
         <p>Generated: ${date}</p>
         <h2>Summary</h2>
         <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 50%;">
-          <tr><td><strong>Total Budget</strong></td><td>$${mockBudgetData.totalBudget.toLocaleString()}</td></tr>
-          <tr><td><strong>Allocated</strong></td><td>$${mockBudgetData.allocated.toLocaleString()}</td></tr>
-          <tr><td><strong>Spent</strong></td><td>$${mockBudgetData.spent.toLocaleString()}</td></tr>
-          <tr><td><strong>Remaining</strong></td><td>$${mockBudgetData.remaining.toLocaleString()}</td></tr>
+          <tr><td><strong>Total Budget</strong></td><td>$${budgetData.totalBudget.toLocaleString()}</td></tr>
+          <tr><td><strong>Allocated</strong></td><td>$${budgetData.allocated.toLocaleString()}</td></tr>
+          <tr><td><strong>Spent</strong></td><td>$${budgetData.spent.toLocaleString()}</td></tr>
+          <tr><td><strong>Remaining</strong></td><td>$${budgetData.remaining.toLocaleString()}</td></tr>
         </table>
         <h2>By Category</h2>
         <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;">
@@ -274,7 +323,7 @@ const ReportingDashboard: React.FC = () => {
             <th>Remaining</th>
             <th>Utilization</th>
           </tr>
-          ${mockBudgetData.byCategory.map(c => `
+          ${budgetData.byCategory.map(c => `
             <tr>
               <td>${c.category}</td>
               <td>$${c.allocated.toLocaleString()}</td>
@@ -330,9 +379,9 @@ const ReportingDashboard: React.FC = () => {
       expiredCerts,
       expiringCerts,
       avgComplianceRate,
-      budgetUtilization: Math.round((mockBudgetData.spent / mockBudgetData.totalBudget) * 100),
+      budgetUtilization: Math.round((budgetData.spent / budgetData.totalBudget) * 100),
     };
-  }, [expirationAlerts, complianceData]);
+  }, [expirationAlerts, complianceData, budgetData]);
 
   return (
     <div className="space-y-6">
@@ -344,11 +393,12 @@ const ReportingDashboard: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            onClick={() => fetchBudgetData()}
+            disabled={isLoadingBudget}
+            className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshIcon size={18} />
-            Refresh
+            <RefreshIcon size={18} className={isLoadingBudget ? 'animate-spin' : ''} />
+            {isLoadingBudget ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -754,7 +804,7 @@ const ReportingDashboard: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-800">Budget Utilization</h3>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => exportToCSV(mockBudgetData.byCategory.map(c => ({
+                    onClick={() => exportToCSV(budgetData.byCategory.map(c => ({
                       category: c.category,
                       allocated: `$${c.allocated.toLocaleString()}`,
                       spent: `$${c.spent.toLocaleString()}`,
@@ -780,19 +830,19 @@ const ReportingDashboard: React.FC = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-slate-800 rounded-xl p-4 text-white">
                   <p className="text-sm text-slate-300">Total Budget</p>
-                  <p className="text-2xl font-bold">${mockBudgetData.totalBudget.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${budgetData.totalBudget.toLocaleString()}</p>
                 </div>
                 <div className="bg-blue-500 rounded-xl p-4 text-white">
                   <p className="text-sm text-blue-100">Allocated</p>
-                  <p className="text-2xl font-bold">${mockBudgetData.allocated.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${budgetData.allocated.toLocaleString()}</p>
                 </div>
                 <div className="bg-amber-500 rounded-xl p-4 text-white">
                   <p className="text-sm text-amber-100">Spent</p>
-                  <p className="text-2xl font-bold">${mockBudgetData.spent.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${budgetData.spent.toLocaleString()}</p>
                 </div>
                 <div className="bg-green-500 rounded-xl p-4 text-white">
                   <p className="text-sm text-green-100">Remaining</p>
-                  <p className="text-2xl font-bold">${mockBudgetData.remaining.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${budgetData.remaining.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -801,7 +851,7 @@ const ReportingDashboard: React.FC = () => {
                 <div className="bg-slate-50 rounded-xl p-4">
                   <h4 className="text-sm font-medium text-slate-700 mb-4">Utilization by Category</h4>
                   <div className="space-y-3">
-                    {mockBudgetData.byCategory.map(cat => {
+                    {budgetData.byCategory.map(cat => {
                       const utilization = Math.round((cat.spent / cat.allocated) * 100);
                       return (
                         <div key={cat.category} className="space-y-1">
@@ -830,8 +880,8 @@ const ReportingDashboard: React.FC = () => {
                 <div className="bg-slate-50 rounded-xl p-4">
                   <h4 className="text-sm font-medium text-slate-700 mb-4">Monthly Spending Trend</h4>
                   <div className="flex items-end justify-between h-48 gap-2">
-                    {mockBudgetData.monthlySpending.map((month, idx) => {
-                      const maxAmount = Math.max(...mockBudgetData.monthlySpending.map(m => m.amount));
+                    {budgetData.monthlySpending.map((month, idx) => {
+                      const maxAmount = Math.max(...budgetData.monthlySpending.map(m => m.amount));
                       const height = (month.amount / maxAmount) * 100;
                       return (
                         <div key={month.month} className="flex-1 flex flex-col items-center gap-2">
@@ -865,7 +915,7 @@ const ReportingDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockBudgetData.byCategory.map(cat => {
+                    {budgetData.byCategory.map(cat => {
                       const utilization = Math.round((cat.spent / cat.allocated) * 100);
                       const remaining = cat.allocated - cat.spent;
                       return (
@@ -899,17 +949,17 @@ const ReportingDashboard: React.FC = () => {
                     <tr className="bg-slate-100 font-semibold">
                       <td className="py-3 px-4 text-sm text-slate-800">Total</td>
                       <td className="py-3 px-4 text-sm text-slate-800 text-right">
-                        ${mockBudgetData.allocated.toLocaleString()}
+                        ${budgetData.allocated.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-800 text-right">
-                        ${mockBudgetData.spent.toLocaleString()}
+                        ${budgetData.spent.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-sm text-green-600 text-right">
-                        ${(mockBudgetData.allocated - mockBudgetData.spent).toLocaleString()}
+                        ${(budgetData.allocated - budgetData.spent).toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
-                          {Math.round((mockBudgetData.spent / mockBudgetData.allocated) * 100)}%
+                          {Math.round((budgetData.spent / budgetData.allocated) * 100)}%
                         </span>
                       </td>
                     </tr>
