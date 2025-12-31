@@ -158,6 +158,7 @@ const AdminPanel: React.FC = () => {
     rank: '',
     phone: '',
     supervisorId: '',
+    hireDate: '',
   });
 
   // New training form state
@@ -532,6 +533,7 @@ const AdminPanel: React.FC = () => {
       rank: user.rank,
       phone: user.phone || '',
       supervisorId: user.supervisorId || '',
+      hireDate: user.hireDate || '',
     });
     // Reset avatar states
     setEditAvatarFile(null);
@@ -1851,6 +1853,18 @@ const AdminPanel: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Hire Date
+                </label>
+                <input
+                  type="date"
+                  value={editUserForm.hireDate ? editUserForm.hireDate.split('T')[0] : ''}
+                  onChange={(e) => setEditUserForm(prev => ({ ...prev, hireDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
