@@ -106,10 +106,6 @@ export const userService = {
   },
 
   async update(id: string, updates: Partial<User>): Promise<User | null> {
-    console.log('=== USER UPDATE DEBUG ===');
-    console.log('User ID:', id);
-    console.log('Updates received:', updates);
-    
     const dbUpdates: Record<string, unknown> = {};
     if (updates.email) dbUpdates.email = updates.email;
     if (updates.phone) dbUpdates.phone = updates.phone;
@@ -122,8 +118,6 @@ export const userService = {
     if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId || null;
     if (updates.hireDate) dbUpdates.hire_date = updates.hireDate;
     dbUpdates.updated_at = new Date().toISOString();
-    
-    console.log('DB Updates to apply:', dbUpdates);
 
     const { data, error } = await supabase
       .from('users')
@@ -131,10 +125,6 @@ export const userService = {
       .eq('id', id)
       .select()
       .single();
-
-    console.log('Supabase response - data:', data);
-    console.log('Supabase response - error:', error);
-    console.log('=========================');
 
     if (error || !data) return null;
     return mapUserFromDb(data);

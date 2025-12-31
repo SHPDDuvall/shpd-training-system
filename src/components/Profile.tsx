@@ -108,10 +108,8 @@ const Profile: React.FC = () => {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Saving profile with hireDate:', hireDate);
     try {
       const result = await updateCurrentUser({ email, phone, hireDate });
-      console.log('Save result:', result);
       if (result) {
         showToast('Profile updated successfully!');
       } else {
