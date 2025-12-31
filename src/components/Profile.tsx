@@ -58,6 +58,15 @@ const Profile: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [hireDate, setHireDate] = useState(user?.hireDate || '');
+
+  // Sync form state when user data changes
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+      setHireDate(user.hireDate || '');
+    }
+  }, [user]);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [trainingReminders, setTrainingReminders] = useState(true);
