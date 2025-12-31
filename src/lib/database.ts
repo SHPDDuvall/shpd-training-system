@@ -116,6 +116,7 @@ export const userService = {
     if (updates.rank) dbUpdates.rank = updates.rank;
     if (updates.role) dbUpdates.role = updates.role;
     if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId || null;
+    if (updates.hireDate) dbUpdates.hire_date = updates.hireDate;
     dbUpdates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

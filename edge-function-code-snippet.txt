@@ -1,0 +1,14 @@
+Edge Function Code Snippet (visible portion):
+
+Lines visible:
+- Line 1: import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+- CORS headers configuration
+- Line 7-13: Handle CORS preflight requests
+- Line 14-21: Parse request body with fields like:
+  - to, subject, officerName, trainingName, trainingDate, notes
+  - approverName, recipientName, badgeNumber, trainingType
+  - dateSubmitted, systemLink
+- Line 38-40: Validation for required fields
+- Uses SendGrid API (SENDGRID_API_KEY from environment)
+
+Need to scroll down to see the actual email sending code where the sender email is configured.

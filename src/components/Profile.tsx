@@ -57,6 +57,7 @@ const Profile: React.FC = () => {
   // Form states
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [hireDate, setHireDate] = useState(user?.hireDate || '');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [trainingReminders, setTrainingReminders] = useState(true);
@@ -108,7 +109,7 @@ const Profile: React.FC = () => {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateCurrentUser({ email, phone });
+      await updateCurrentUser({ email, phone, hireDate });
       showToast('Profile updated successfully!');
     } catch (error) {
       showToast('Failed to update profile');
@@ -556,10 +557,10 @@ const Profile: React.FC = () => {
                   <div className="relative">
                     <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      type="text"
-                      value={formatDate(user.hireDate)}
-                      disabled
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-600"
+                      type="date"
+                      value={hireDate ? hireDate.split('T')[0] : ''}
+                      onChange={(e) => setHireDate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     />
                   </div>
                 </div>
