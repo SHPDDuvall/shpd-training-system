@@ -107,6 +107,7 @@ export const userService = {
 
   async update(id: string, updates: Partial<User>): Promise<User | null> {
     const dbUpdates: Record<string, unknown> = {};
+    if (updates.badgeNumber) dbUpdates.badge_number = updates.badgeNumber;
     if (updates.email) dbUpdates.email = updates.email;
     if (updates.phone) dbUpdates.phone = updates.phone;
     if (updates.avatar) dbUpdates.avatar = updates.avatar;

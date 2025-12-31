@@ -150,6 +150,7 @@ const AdminPanel: React.FC = () => {
 
   // Edit user form state
   const [editUserForm, setEditUserForm] = useState({
+    badgeNumber: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -525,6 +526,7 @@ const AdminPanel: React.FC = () => {
   const handleOpenEditModal = (user: User) => {
     setEditingUser(user);
     setEditUserForm({
+      badgeNumber: user.badgeNumber,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -637,7 +639,7 @@ const AdminPanel: React.FC = () => {
     setUpdateUserSuccess(false);
 
     try {
-      if (!editUserForm.firstName || !editUserForm.lastName || !editUserForm.email || !editUserForm.department || !editUserForm.rank) {
+      if (!editUserForm.badgeNumber || !editUserForm.firstName || !editUserForm.lastName || !editUserForm.email || !editUserForm.department || !editUserForm.rank) {
         setUpdateUserError('Please fill in all required fields');
         setIsUpdatingUser(false);
         return;
@@ -1589,10 +1591,18 @@ const AdminPanel: React.FC = () => {
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <div className="text-sm text-slate-600">
-                  <span className="font-medium">Badge Number:</span> #{editingUser.badgeNumber}
-                </div>
+              {/* Badge Number Field */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Badge Number *
+                </label>
+                <input
+                  type="text"
+                  value={editUserForm.badgeNumber}
+                  onChange={(e) => setEditUserForm(prev => ({ ...prev, badgeNumber: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="Enter badge number"
+                />
               </div>
 
               {/* Profile Photo Section */}
