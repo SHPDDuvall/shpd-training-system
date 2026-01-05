@@ -412,7 +412,7 @@ export const requestService = {
       .insert({
         training_id: request.trainingId,
         user_id: request.userId,
-        status: 'submitted',
+        status: 'pending',
         course_name: courseName,
         training_type: trainingType,
         notes: request.notes || null,
