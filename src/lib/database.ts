@@ -99,7 +99,11 @@ export const userService = {
       .single();
 
     if (error || !data) {
-      console.error('Error creating user:', error);
+      console.error('Error creating user:', error?.message || error);
+      // Check if it's a unique constraint violation
+      if (error?.code === '23505') {
+        console.error('Duplicate entry detected - badge number or email already exists');
+      }
       return null;
     }
     return mapUserFromDb(data);

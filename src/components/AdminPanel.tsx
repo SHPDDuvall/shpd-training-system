@@ -482,8 +482,8 @@ const AdminPanel: React.FC = () => {
     setCreateUserSuccess(false);
 
     try {
-      if (!newUser.badgeNumber || !newUser.firstName || !newUser.lastName || !newUser.email || !newUser.department || !newUser.rank) {
-        setCreateUserError('Please fill in all required fields');
+      if (!newUser.badgeNumber || !newUser.firstName || !newUser.lastName || !newUser.email) {
+        setCreateUserError('Please fill in all required fields (Badge Number, First Name, Last Name, Email)');
         setIsCreatingUser(false);
         return;
       }
@@ -1419,23 +1419,23 @@ const AdminPanel: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Role *
+                    Role
                   </label>
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as User['role'] }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    required
                   >
                     <option value="officer">Officer</option>
                     <option value="supervisor">Supervisor</option>
                     <option value="administrator">Administrator</option>
                     <option value="accounting">Accounting</option>
+                    <option value="staff">Staff</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Rank *
+                    Rank
                   </label>
                   <input
                     type="text"
@@ -1443,7 +1443,6 @@ const AdminPanel: React.FC = () => {
                     onChange={(e) => setNewUser(prev => ({ ...prev, rank: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     placeholder="e.g., Officer, Sergeant, Captain"
-                    required
                   />
                 </div>
               </div>
@@ -1451,7 +1450,7 @@ const AdminPanel: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Department *
+                    Department
                   </label>
                   <input
                     type="text"
@@ -1459,7 +1458,6 @@ const AdminPanel: React.FC = () => {
                     onChange={(e) => setNewUser(prev => ({ ...prev, department: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     placeholder="e.g., Patrol Division"
-                    required
                   />
                 </div>
                 <div>
@@ -1793,30 +1791,29 @@ const AdminPanel: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Role *
+                    Role
                   </label>
                   <select
                     value={editUserForm.role}
                     onChange={(e) => setEditUserForm(prev => ({ ...prev, role: e.target.value as User['role'] }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    required
                   >
                     <option value="officer">Officer</option>
                     <option value="supervisor">Supervisor</option>
                     <option value="administrator">Administrator</option>
                     <option value="accounting">Accounting</option>
+                    <option value="staff">Staff</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Rank *
+                    Rank
                   </label>
                   <input
                     type="text"
                     value={editUserForm.rank}
                     onChange={(e) => setEditUserForm(prev => ({ ...prev, rank: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    required
                   />
                 </div>
               </div>
@@ -1824,14 +1821,13 @@ const AdminPanel: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Department *
+                    Department
                   </label>
                   <input
                     type="text"
                     value={editUserForm.department}
                     onChange={(e) => setEditUserForm(prev => ({ ...prev, department: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    required
                   />
                 </div>
                 <div>

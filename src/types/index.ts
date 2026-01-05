@@ -1,6 +1,6 @@
 // Types for the Police Training Module
 
-export type UserRole = 'officer' | 'supervisor' | 'administrator' | 'accounting';
+export type UserRole = 'officer' | 'supervisor' | 'administrator' | 'accounting' | 'staff';
 
 export interface User {
   id: string;
