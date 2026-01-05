@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Certificate, Document as DocType } from '@/types';
+import { Certificate, Document as DocType, Platoon, PLATOON_OPTIONS } from '@/types';
 import { certificateService, documentService } from '@/lib/database';
 import CertificateGenerator from '@/components/CertificateGenerator';
 import {
@@ -58,6 +58,7 @@ const Profile: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [hireDate, setHireDate] = useState(user?.hireDate || '');
+  const [platoon, setPlatoon] = useState<Platoon>(user?.platoon || '');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [trainingReminders, setTrainingReminders] = useState(true);
@@ -109,7 +110,7 @@ const Profile: React.FC = () => {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await updateCurrentUser({ email, phone, hireDate });
+      const result = await updateCurrentUser({ email, phone, hireDate, platoon });
       if (result) {
         showToast('Profile updated successfully!');
       } else {
@@ -568,6 +569,22 @@ const Profile: React.FC = () => {
                       className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Platoon / Shift
+                  </label>
+                  <select
+                    value={platoon}
+                    onChange={(e) => setPlatoon(e.target.value as Platoon)}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  >
+                    {PLATOON_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

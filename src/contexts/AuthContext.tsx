@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { User, Notification, TrainingRequest } from '@/types';
+import { User, Notification, TrainingRequest, Platoon } from '@/types';
 import { userService, notificationService, requestService, externalTrainingService } from '@/lib/database';
 import { sendGeneralEmail } from '@/lib/emailService';
 import { supabase } from '@/lib/supabase';
@@ -35,6 +35,7 @@ interface AuthContextType {
     hireDate?: string;
     supervisorId?: string;
     password?: string;
+    platoon?: Platoon;
   }) => Promise<User | null>;
   updateUser: (id: string, updates: Partial<User>) => Promise<User | null>;
   updateCurrentUser: (updates: Partial<User>) => Promise<User | null>;
@@ -342,6 +343,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     hireDate?: string;
     supervisorId?: string;
     password?: string;
+    platoon?: Platoon;
   }): Promise<User | null> => {
     const newUser = await userService.create(userData);
     if (newUser) {

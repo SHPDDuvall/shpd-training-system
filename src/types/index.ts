@@ -2,6 +2,16 @@
 
 export type UserRole = 'officer' | 'supervisor' | 'administrator' | 'accounting' | 'staff';
 
+export type Platoon = 'A-Days' | 'B-Nights' | 'C-Nights' | 'D-Days' | '';
+
+export const PLATOON_OPTIONS: { value: Platoon; label: string }[] = [
+  { value: '', label: 'Not Assigned' },
+  { value: 'A-Days', label: 'A-Days (Perm Days)' },
+  { value: 'B-Nights', label: 'B-Nights (Rotating)' },
+  { value: 'C-Nights', label: 'C-Nights (Perm Nights)' },
+  { value: 'D-Days', label: 'D-Days (Rotating)' },
+];
+
 export interface User {
   id: string;
   badgeNumber: string;
@@ -15,6 +25,7 @@ export interface User {
   phone: string;
   hireDate: string;
   supervisorId?: string;
+  platoon?: Platoon;
 }
 
 export interface TrainingOpportunity {

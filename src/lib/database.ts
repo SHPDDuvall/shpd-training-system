@@ -78,6 +78,7 @@ export const userService = {
     hireDate?: string;
     supervisorId?: string;
     password?: string;
+    platoon?: string;
   }): Promise<User | null> {
     const { data, error } = await supabase
       .from('users')
@@ -94,6 +95,7 @@ export const userService = {
         supervisor_id: userData.supervisorId || null,
         password_hash: userData.password || userData.badgeNumber, // Default password is badge number
         avatar: '',
+        platoon: userData.platoon || '',
       })
       .select()
       .single();
@@ -122,6 +124,7 @@ export const userService = {
     if (updates.role) dbUpdates.role = updates.role;
     if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId || null;
     if (updates.hireDate) dbUpdates.hire_date = updates.hireDate;
+    if (updates.platoon !== undefined) dbUpdates.platoon = updates.platoon;
     dbUpdates.updated_at = new Date().toISOString();
 
     console.log('Updating user with ID:', id);
@@ -1105,6 +1108,7 @@ function mapUserFromDb(data: Record<string, unknown>): User {
     phone: data.phone as string || '',
     hireDate: data.hire_date as string || '',
     supervisorId: data.supervisor_id as string | undefined,
+    platoon: (data.platoon as string) || '',
   };
 }
 
