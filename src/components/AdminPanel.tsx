@@ -639,7 +639,7 @@ const AdminPanel: React.FC = () => {
     setUpdateUserSuccess(false);
 
     try {
-      if (!editUserForm.badgeNumber || !editUserForm.firstName || !editUserForm.lastName || !editUserForm.email || !editUserForm.department || !editUserForm.rank) {
+      if (!editUserForm.badgeNumber || !editUserForm.firstName || !editUserForm.lastName || !editUserForm.email) {
         setUpdateUserError('Please fill in all required fields');
         setIsUpdatingUser(false);
         return;
