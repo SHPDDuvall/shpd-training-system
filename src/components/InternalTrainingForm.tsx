@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { internalTrainingService, userService, notificationService } from '@/lib/database';
+import { sendGeneralEmail } from '@/lib/emailService';
 import { InternalTrainingRequest, User } from '@/types';
 import {
   CalendarIcon,
@@ -73,6 +74,27 @@ const InternalTrainingForm: React.FC = () => {
           type: 'success',
           link: '/internal-training',
         });
+
+        // Send email notification to supervisors/admins
+        try {
+          const approvers = allUsers.filter(u => 
+            u.role === 'supervisor' || u.role === 'administrator'
+          );
+          
+          for (const approver of approvers) {
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: approver.email,
+              recipientName: `${approver.firstName} ${approver.lastName}`,
+              subject: `New Internal Training Request: ${courseName}`,
+              body: `A new internal training request has been submitted and requires your review.\n\nRequester: ${user.firstName} ${user.lastName}\nCourse: ${courseName}\nDate: ${trainingDate}\nLocation: ${location}\nInstructor: ${instructor}\nAttendees: ${selectedAttendees.length} selected\n\nPlease log in to the Training Management System to review this request.`,
+              senderName: 'SHPD Training System',
+            });
+          }
+          console.log('Email notifications sent to approvers');
+        } catch (emailError) {
+          console.error('Error sending email notifications:', emailError);
+        }
 
         setRequests(prev => [newRequest, ...prev]);
         resetForm();

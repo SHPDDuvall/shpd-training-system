@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { User, Notification, TrainingRequest } from '@/types';
 import { userService, notificationService, requestService, externalTrainingService } from '@/lib/database';
+import { sendGeneralEmail } from '@/lib/emailService';
 import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
@@ -206,6 +207,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         type: 'success',
         link: '/requests',
       });
+
+      // Send email notification to supervisors/admins
+      try {
+        const allUsersData = await userService.getAll();
+        const approvers = allUsersData.filter(u => 
+          u.role === 'supervisor' || u.role === 'administrator'
+        );
+        
+        for (const approver of approvers) {
+          await sendGeneralEmail({
+            type: 'general',
+            recipientEmail: approver.email,
+            recipientName: `${approver.firstName} ${approver.lastName}`,
+            subject: `New Training Request: ${newRequest.trainingTitle}`,
+            body: `A new training request has been submitted and requires your review.\n\nRequester: ${user.firstName} ${user.lastName}\nTraining: ${newRequest.trainingTitle}\nStatus: ${newRequest.status}\n\nPlease log in to the Training Management System to review this request.`,
+            senderName: 'SHPD Training System',
+          });
+        }
+        console.log('Email notifications sent to approvers');
+      } catch (emailError) {
+        console.error('Error sending email notifications:', emailError);
+      }
     }
 
     return newRequest;

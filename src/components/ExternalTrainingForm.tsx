@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { externalTrainingService, notificationService } from '@/lib/database';
+import { externalTrainingService, notificationService, userService } from '@/lib/database';
+import { sendGeneralEmail } from '@/lib/emailService';
 import { ExternalTrainingRequest } from '@/types';
 import {
   CalendarIcon,
@@ -75,6 +76,28 @@ const ExternalTrainingForm: React.FC = () => {
           type: 'success',
           link: '/external-training',
         });
+
+        // Send email notification to supervisors/admins
+        try {
+          const allUsers = await userService.getAll();
+          const approvers = allUsers.filter(u => 
+            u.role === 'supervisor' || u.role === 'administrator'
+          );
+          
+          for (const approver of approvers) {
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: approver.email,
+              recipientName: `${approver.firstName} ${approver.lastName}`,
+              subject: `New External Training Request: ${eventName}`,
+              body: `A new external training request has been submitted and requires your review.\n\nRequester: ${user.firstName} ${user.lastName}\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review this request.`,
+              senderName: 'SHPD Training System',
+            });
+          }
+          console.log('Email notifications sent to approvers');
+        } catch (emailError) {
+          console.error('Error sending email notifications:', emailError);
+        }
 
         setRequests(prev => [newRequest, ...prev]);
         resetForm();
