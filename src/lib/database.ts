@@ -383,6 +383,8 @@ export const requestService = {
     userId: string;
     notes?: string;
   }): Promise<TrainingRequest | null> {
+    console.log('=== REQUEST SERVICE CREATE ===' );
+    console.log('Input request:', request);
     const { data, error } = await supabase
       .from('training_requests')
       .insert({
@@ -401,7 +403,12 @@ export const requestService = {
       `)
       .single();
 
-    if (error || !data) return null;
+    console.log('Supabase insert result - data:', data);
+    console.log('Supabase insert result - error:', error);
+    if (error || !data) {
+      console.log('Returning null due to error or no data');
+      return null;
+    }
     return mapRequestFromDb(data);
   },
 

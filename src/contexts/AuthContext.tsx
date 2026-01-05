@@ -184,13 +184,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user]);
 
   const addRequest = useCallback(async (trainingId: string, notes?: string): Promise<TrainingRequest | null> => {
-    if (!user) return null;
+    console.log('=== AUTH CONTEXT addRequest ===' );
+    console.log('trainingId:', trainingId);
+    console.log('user:', user);
+    if (!user) {
+      console.log('No user, returning null');
+      return null;
+    }
 
+    console.log('Calling requestService.create...');
     const newRequest = await requestService.create({
       trainingId,
       userId: user.id,
       notes,
     });
+    console.log('requestService.create result:', newRequest);
 
     if (newRequest) {
       setUserRequests(prev => [newRequest, ...prev]);

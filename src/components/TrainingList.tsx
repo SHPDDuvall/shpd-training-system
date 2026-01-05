@@ -75,11 +75,19 @@ const TrainingList: React.FC = () => {
   };
 
   const handleRequestTraining = async () => {
-    if (!selectedTraining || !user) return;
+    console.log('=== TRAINING REQUEST DEBUG ===' );
+    console.log('selectedTraining:', selectedTraining);
+    console.log('user:', user);
+    if (!selectedTraining || !user) {
+      console.log('Early return - missing selectedTraining or user');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      console.log('Calling addRequest with trainingId:', selectedTraining.id, 'notes:', requestNotes);
       const newRequest = await addRequest(selectedTraining.id, requestNotes);
+      console.log('addRequest result:', newRequest);
       
       if (newRequest) {
         setShowRequestModal(false);
