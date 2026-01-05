@@ -1418,7 +1418,6 @@ export const externalTrainingService = {
     justification: string;
     notes?: string;
   }): Promise<ExternalTrainingRequest | null> {
-    console.log('Creating external training request:', request);
     const insertData = {
       user_id: request.userId,
       event_name: request.eventName,
@@ -1432,8 +1431,6 @@ export const externalTrainingService = {
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
     };
-    console.log('Insert data:', insertData);
-    
     const { data, error } = await supabase
       .from('external_training_requests')
       .insert(insertData)
@@ -1445,11 +1442,7 @@ export const externalTrainingService = {
       `)
       .single();
 
-    console.log('External training create result - data:', data);
-    console.log('External training create result - error:', error);
-    
     if (error || !data) {
-      console.error('Failed to create external training request:', error);
       return null;
     }
     return mapExternalTrainingFromDb(data);

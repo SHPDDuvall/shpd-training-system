@@ -48,12 +48,7 @@ const ExternalTrainingForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('=== EXTERNAL TRAINING SUBMIT ===');
-    console.log('Form values:', { eventName, organization, startDate, endDate, location, justification, costEstimate, notes });
-    console.log('User:', user?.id);
-    
     if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification) {
-      console.log('Validation failed:', { user: !!user, eventName: !!eventName, organization: !!organization, startDate: !!startDate, endDate: !!endDate, location: !!location, justification: !!justification });
       return;
     }
 
