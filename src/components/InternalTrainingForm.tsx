@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { internalTrainingService, userService, notificationService } from '@/lib/database';
 import { sendGeneralEmail } from '@/lib/emailService';
-import { InternalTrainingRequest, User } from '@/types';
+import { InternalTrainingRequest, User, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
 import {
   CalendarIcon,
   LocationIcon,
@@ -374,6 +374,16 @@ const InternalTrainingForm: React.FC = () => {
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-slate-800">{request.courseName}</h3>
                       {getStatusBadge(request.status)}
+                      {/* 30-Day Advance Submission Indicator */}
+                      {isSubmittedWithin30Days(request.submittedDate, request.trainingDate) ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700" title="Submitted 30+ days in advance">
+                          ✓ 30+ Days
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700" title={`Submitted ${getDaysUntilTraining(request.submittedDate, request.trainingDate)} days before training`}>
+                          ⚠ {getDaysUntilTraining(request.submittedDate, request.trainingDate)} Days
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                       <div className="flex items-center gap-1">

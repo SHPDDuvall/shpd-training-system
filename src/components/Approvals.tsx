@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { sendApprovalNotification, sendDenialNotification } from '@/lib/emailService';
 import { trainingService, certificateService, notificationService } from '@/lib/database';
-import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue } from '@/types';
+import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
 import { generateRequestStatusNotification } from '@/lib/notificationGenerator';
 import {
   CheckIcon,
@@ -621,7 +621,21 @@ const Approvals: React.FC = () => {
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-slate-800 text-lg">{request.trainingTitle}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-slate-800 text-lg">{request.trainingTitle}</h3>
+                              {/* 30-Day Advance Submission Indicator */}
+                              {training && (
+                                isSubmittedWithin30Days(request.submittedDate, training.date) ? (
+                                  <span className="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700" title="Submitted 30+ days in advance">
+                                    ✓ 30+ Days
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700" title={`Submitted ${getDaysUntilTraining(request.submittedDate, training.date)} days before training`}>
+                                    ⚠ {getDaysUntilTraining(request.submittedDate, training.date)} Days
+                                  </span>
+                                )
+                              )}
+                            </div>
                             {training && (
                               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
                                 <span className="flex items-center gap-1">
@@ -753,6 +767,16 @@ const Approvals: React.FC = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-semibold text-slate-800 text-lg">{request.trainingTitle}</h3>
                             {getStatusBadge(request.status)}
+                            {/* 30-Day Advance Submission Indicator */}
+                            {isSubmittedWithin30Days(request.submittedDate, request.requestedDate) ? (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700" title="Submitted 30+ days in advance">
+                                ✓ 30+ Days
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700" title={`Submitted ${getDaysUntilTraining(request.submittedDate, request.requestedDate)} days before training`}>
+                                ⚠ {getDaysUntilTraining(request.submittedDate, request.requestedDate)} Days
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-slate-600 mb-3">{request.trainingDescription}</p>
                           

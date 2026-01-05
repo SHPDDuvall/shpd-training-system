@@ -66,6 +66,7 @@ export interface TrainingRequest {
   scheduledDate?: string;
   notes: string;
   denialReason?: string;
+  submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
 }
 
 export interface Notification {
@@ -201,6 +202,7 @@ export interface InternalTrainingRequest {
   denialReason?: string;
   createdAt: string;
   updatedAt?: string;
+  submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
 }
 
 // External Training Request types
@@ -230,6 +232,7 @@ export interface ExternalTrainingRequest {
   denialReason?: string;
   createdAt: string;
   updatedAt?: string;
+  submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
 }
 
 // Custom Training Request types
@@ -417,4 +420,22 @@ export interface EmailAttachment {
   contentType: string;
   size: number;
   uploadedAt: string;
+}
+
+
+// Helper function to check if a request was submitted at least 30 days before training date
+export function isSubmittedWithin30Days(submittedDate: string, trainingDate: string): boolean {
+  const submitted = new Date(submittedDate);
+  const training = new Date(trainingDate);
+  const diffTime = training.getTime() - submitted.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays >= 30;
+}
+
+// Helper function to get days until training
+export function getDaysUntilTraining(submittedDate: string, trainingDate: string): number {
+  const submitted = new Date(submittedDate);
+  const training = new Date(trainingDate);
+  const diffTime = training.getTime() - submitted.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
