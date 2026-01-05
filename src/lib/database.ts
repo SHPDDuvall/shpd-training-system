@@ -394,13 +394,24 @@ export const requestService = {
     console.log('=== REQUEST SERVICE CREATE ===' );
     console.log('Input request:', request);
     
-    // First, insert the request
+    // First, fetch the training course to get the course name
+    const { data: courseData } = await supabase
+      .from('training_courses')
+      .select('title')
+      .eq('id', request.trainingId)
+      .single();
+    
+    const courseName = courseData?.title || 'Unknown Course';
+    console.log('Course name for insert:', courseName);
+    
+    // Insert the request with course_name
     const { data: insertData, error: insertError } = await supabase
       .from('training_requests')
       .insert({
         training_id: request.trainingId,
         user_id: request.userId,
         status: 'submitted',
+        course_name: courseName,
         notes: request.notes || null,
       })
       .select('*')
