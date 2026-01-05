@@ -1418,21 +1418,25 @@ export const externalTrainingService = {
     justification: string;
     notes?: string;
   }): Promise<ExternalTrainingRequest | null> {
+    console.log('Creating external training request:', request);
+    const insertData = {
+      user_id: request.userId,
+      event_name: request.eventName,
+      organization: request.organization,
+      start_date: request.startDate,
+      end_date: request.endDate,
+      location: request.location,
+      cost_estimate: request.costEstimate,
+      justification: request.justification,
+      status: 'pending',
+      submitted_date: new Date().toISOString().split('T')[0],
+      notes: request.notes || null,
+    };
+    console.log('Insert data:', insertData);
+    
     const { data, error } = await supabase
       .from('external_training_requests')
-      .insert({
-        user_id: request.userId,
-        event_name: request.eventName,
-        organization: request.organization,
-        start_date: request.startDate,
-        end_date: request.endDate,
-        location: request.location,
-        cost_estimate: request.costEstimate,
-        justification: request.justification,
-        status: 'submitted',
-        submitted_date: new Date().toISOString().split('T')[0],
-        notes: request.notes || null,
-      })
+      .insert(insertData)
       .select(`
         *,
         user:users!user_id(id, badge_number, first_name, last_name),
@@ -1441,7 +1445,13 @@ export const externalTrainingService = {
       `)
       .single();
 
-    if (error || !data) return null;
+    console.log('External training create result - data:', data);
+    console.log('External training create result - error:', error);
+    
+    if (error || !data) {
+      console.error('Failed to create external training request:', error);
+      return null;
+    }
     return mapExternalTrainingFromDb(data);
   },
 
