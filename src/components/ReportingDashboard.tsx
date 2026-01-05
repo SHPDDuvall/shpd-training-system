@@ -66,6 +66,20 @@ const ReportingDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'compliance' | 'certificates' | 'budget'>('overview');
   const [budgetData, setBudgetData] = useState(mockBudgetData);
   const [isLoadingBudget, setIsLoadingBudget] = useState(false);
+  const [expandedComplianceItems, setExpandedComplianceItems] = useState<Set<string>>(new Set());
+
+  // Toggle expanded state for compliance items
+  const toggleComplianceExpanded = (trainingName: string) => {
+    setExpandedComplianceItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(trainingName)) {
+        newSet.delete(trainingName);
+      } else {
+        newSet.add(trainingName);
+      }
+      return newSet;
+    });
+  };
 
   // Fetch budget data from database
   const fetchBudgetData = async () => {
@@ -673,15 +687,23 @@ const ReportingDashboard: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-slate-200">
                         <p className="text-sm font-medium text-slate-700 mb-2">Non-Compliant Officers:</p>
                         <div className="flex flex-wrap gap-2">
-                          {item.nonCompliantOfficers.slice(0, 5).map(officer => (
+                          {(expandedComplianceItems.has(item.training) 
+                            ? item.nonCompliantOfficers 
+                            : item.nonCompliantOfficers.slice(0, 5)
+                          ).map(officer => (
                             <span key={officer.id} className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
                               {officer.firstName} {officer.lastName} (#{officer.badgeNumber})
                             </span>
                           ))}
                           {item.nonCompliantOfficers.length > 5 && (
-                            <span className="px-2 py-1 text-xs bg-slate-200 text-slate-600 rounded-full">
-                              +{item.nonCompliantOfficers.length - 5} more
-                            </span>
+                            <button
+                              onClick={() => toggleComplianceExpanded(item.training)}
+                              className="px-2 py-1 text-xs bg-slate-200 text-slate-600 rounded-full hover:bg-slate-300 transition-colors cursor-pointer"
+                            >
+                              {expandedComplianceItems.has(item.training) 
+                                ? 'Show less' 
+                                : `+${item.nonCompliantOfficers.length - 5} more`}
+                            </button>
                           )}
                         </div>
                       </div>
