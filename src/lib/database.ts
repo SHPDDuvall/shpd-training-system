@@ -113,17 +113,18 @@ export const userService = {
 
   async update(id: string, updates: Partial<User>): Promise<User | null> {
     const dbUpdates: Record<string, unknown> = {};
-    if (updates.badgeNumber) dbUpdates.badge_number = updates.badgeNumber;
-    if (updates.email) dbUpdates.email = updates.email;
-    if (updates.phone) dbUpdates.phone = updates.phone;
-    if (updates.avatar) dbUpdates.avatar = updates.avatar;
-    if (updates.firstName) dbUpdates.first_name = updates.firstName;
-    if (updates.lastName) dbUpdates.last_name = updates.lastName;
-    if (updates.department) dbUpdates.department = updates.department;
-    if (updates.rank) dbUpdates.rank = updates.rank;
-    if (updates.role) dbUpdates.role = updates.role;
+    // Use !== undefined to allow empty strings to be set
+    if (updates.badgeNumber !== undefined) dbUpdates.badge_number = updates.badgeNumber;
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+    if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+    if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName;
+    if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
+    if (updates.department !== undefined) dbUpdates.department = updates.department;
+    if (updates.rank !== undefined) dbUpdates.rank = updates.rank;
+    if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId || null;
-    if (updates.hireDate) dbUpdates.hire_date = updates.hireDate;
+    if (updates.hireDate !== undefined) dbUpdates.hire_date = updates.hireDate;
     if (updates.platoon !== undefined) dbUpdates.platoon = updates.platoon;
     dbUpdates.updated_at = new Date().toISOString();
 
