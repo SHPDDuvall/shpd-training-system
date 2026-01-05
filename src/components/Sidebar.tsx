@@ -18,6 +18,7 @@ import {
   ReportIcon,
   InternalTrainingIcon,
   ExternalTrainingIcon,
+  FilterIcon,
 } from '@/components/icons/Icons';
 
 
@@ -51,6 +52,7 @@ const supervisorItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   { id: 'admin', label: 'Admin Controls', icon: AdminIcon, roles: ['administrator'] },
+  { id: 'request-filter', label: 'Request Filter', icon: FilterIcon, roles: ['administrator', 'supervisor'] },
   { id: 'reports', label: 'Reports Dashboard', icon: ReportIcon, roles: ['administrator', 'supervisor'] },
   { id: 'email', label: 'Email Center', icon: EmailIcon, roles: ['administrator', 'supervisor'] },
   { id: 'import', label: 'Import Data', icon: ImportIcon, roles: ['administrator'] },

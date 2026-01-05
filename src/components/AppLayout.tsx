@@ -18,6 +18,7 @@ import Accounting from '@/components/Accounting';
 import ReportingDashboard from '@/components/ReportingDashboard';
 import InternalTrainingForm from '@/components/InternalTrainingForm';
 import ExternalTrainingForm from '@/components/ExternalTrainingForm';
+import TrainingRequestFilter from '@/components/TrainingRequestFilter';
 
 const MainApp: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -57,6 +58,8 @@ const MainApp: React.FC = () => {
         return <Accounting />;
       case 'reports':
         return <ReportingDashboard />;
+      case 'request-filter':
+        return <TrainingRequestFilter />;
       default:
         return <Dashboard onViewChange={setCurrentView} />;
     }
