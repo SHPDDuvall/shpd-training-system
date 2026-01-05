@@ -282,100 +282,108 @@ export const trainingService = {
   },
 };
 
+// Helper function to fetch training requests with related data
+async function fetchRequestsWithRelations(query: ReturnType<typeof supabase.from>): Promise<TrainingRequest[]> {
+  const { data: requests, error } = await query;
+  
+  if (error || !requests || requests.length === 0) {
+    console.log('Request fetch error or no data:', error);
+    return [];
+  }
+
+  // Get unique user IDs and training IDs
+  const userIds = [...new Set(requests.map((r: Record<string, unknown>) => r.user_id).filter(Boolean))];
+  const trainingIds = [...new Set(requests.map((r: Record<string, unknown>) => r.training_id).filter(Boolean))];
+  const supervisorIds = [...new Set(requests.map((r: Record<string, unknown>) => r.supervisor_id).filter(Boolean))];
+  const adminIds = [...new Set(requests.map((r: Record<string, unknown>) => r.admin_id).filter(Boolean))];
+
+  // Fetch users
+  const { data: users } = userIds.length > 0 
+    ? await supabase.from('users').select('id, badge_number, first_name, last_name').in('id', userIds)
+    : { data: [] };
+  
+  // Fetch trainings
+  const { data: trainings } = trainingIds.length > 0
+    ? await supabase.from('training_courses').select('id, title').in('id', trainingIds)
+    : { data: [] };
+
+  // Fetch supervisors
+  const { data: supervisors } = supervisorIds.length > 0
+    ? await supabase.from('users').select('id, first_name, last_name').in('id', supervisorIds)
+    : { data: [] };
+
+  // Fetch admins
+  const { data: admins } = adminIds.length > 0
+    ? await supabase.from('users').select('id, first_name, last_name').in('id', adminIds)
+    : { data: [] };
+
+  // Create lookup maps
+  const userMap = new Map((users || []).map((u: Record<string, unknown>) => [u.id, u]));
+  const trainingMap = new Map((trainings || []).map((t: Record<string, unknown>) => [t.id, t]));
+  const supervisorMap = new Map((supervisors || []).map((s: Record<string, unknown>) => [s.id, s]));
+  const adminMap = new Map((admins || []).map((a: Record<string, unknown>) => [a.id, a]));
+
+  // Combine data
+  const combinedData = requests.map((r: Record<string, unknown>) => ({
+    ...r,
+    user: userMap.get(r.user_id) || null,
+    training: trainingMap.get(r.training_id) || null,
+    supervisor: supervisorMap.get(r.supervisor_id) || null,
+    admin: adminMap.get(r.admin_id) || null,
+  }));
+
+  return combinedData.map(mapRequestFromDb);
+}
+
 // Training request operations
 export const requestService = {
   async getAll(): Promise<TrainingRequest[]> {
-    const { data, error } = await supabase
+    const query = supabase
       .from('training_requests')
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
-    // DEBUG: Log raw database response
-    console.log('=== RAW DATABASE RESPONSE (getAll) ===');
-    console.log('Error:', error);
-    console.log('Data count:', data?.length);
-    if (data && data.length > 0) {
-      console.log('First request raw data:', JSON.stringify(data[0], null, 2));
-      console.log('First request user object:', data[0].user);
-    }
-    console.log('======================================');
-
-    if (error || !data) return [];
-    return data.map(mapRequestFromDb);
+    return fetchRequestsWithRelations(query);
   },
 
   async getByUser(userId: string): Promise<TrainingRequest[]> {
-    const { data, error } = await supabase
+    const query = supabase
       .from('training_requests')
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false});
+      .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
-    return data.map(mapRequestFromDb);
+    return fetchRequestsWithRelations(query);
   },
 
   async getByStatus(status: string): Promise<TrainingRequest[]> {
-    const { data, error } = await supabase
+    const query = supabase
       .from('training_requests')
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .eq('status', status)
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
-    return data.map(mapRequestFromDb);
+    return fetchRequestsWithRelations(query);
   },
 
   async getPendingForSupervisor(): Promise<TrainingRequest[]> {
-    const { data, error } = await supabase
+    const query = supabase
       .from('training_requests')
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .in('status', ['submitted', 'supervisor_review'])
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
-    return data.map(mapRequestFromDb);
+    return fetchRequestsWithRelations(query);
   },
 
   async getPendingForAdmin(): Promise<TrainingRequest[]> {
-    const { data, error } = await supabase
+    const query = supabase
       .from('training_requests')
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .eq('status', 'admin_approval')
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
-    return data.map(mapRequestFromDb);
+    return fetchRequestsWithRelations(query);
   },
 
   async create(request: {
@@ -385,7 +393,9 @@ export const requestService = {
   }): Promise<TrainingRequest | null> {
     console.log('=== REQUEST SERVICE CREATE ===' );
     console.log('Input request:', request);
-    const { data, error } = await supabase
+    
+    // First, insert the request
+    const { data: insertData, error: insertError } = await supabase
       .from('training_requests')
       .insert({
         training_id: request.trainingId,
@@ -394,22 +404,42 @@ export const requestService = {
         submitted_date: new Date().toISOString().split('T')[0],
         notes: request.notes || null,
       })
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .single();
 
-    console.log('Supabase insert result - data:', data);
-    console.log('Supabase insert result - error:', error);
-    if (error || !data) {
-      console.log('Returning null due to error or no data');
+    console.log('Supabase insert result - data:', insertData);
+    console.log('Supabase insert result - error:', insertError);
+    
+    if (insertError || !insertData) {
+      console.log('Insert failed, returning null');
       return null;
     }
-    return mapRequestFromDb(data);
+
+    // Fetch the user data separately
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id, badge_number, first_name, last_name')
+      .eq('id', request.userId)
+      .single();
+
+    // Fetch the training data separately
+    const { data: trainingData } = await supabase
+      .from('training_courses')
+      .select('id, title')
+      .eq('id', request.trainingId)
+      .single();
+
+    // Combine the data
+    const combinedData = {
+      ...insertData,
+      user: userData || null,
+      training: trainingData || null,
+      supervisor: null,
+      admin: null,
+    };
+
+    console.log('Combined data:', combinedData);
+    return mapRequestFromDb(combinedData);
   },
 
   async updateStatus(
@@ -440,21 +470,46 @@ export const requestService = {
       updates.scheduled_date = notes;
     }
 
-    const { data, error } = await supabase
+    // First update the request
+    const { data: updateData, error: updateError } = await supabase
       .from('training_requests')
       .update(updates)
       .eq('id', id)
-      .select(`
-        *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        training:training_courses!training_id(id, title),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
-      `)
+      .select('*')
       .single();
 
-    if (error || !data) return null;
-    return mapRequestFromDb(data);
+    if (updateError || !updateData) return null;
+
+    // Fetch related data separately
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id, badge_number, first_name, last_name')
+      .eq('id', updateData.user_id)
+      .single();
+
+    const { data: trainingData } = await supabase
+      .from('training_courses')
+      .select('id, title')
+      .eq('id', updateData.training_id)
+      .single();
+
+    const { data: supervisorData } = updateData.supervisor_id
+      ? await supabase.from('users').select('id, first_name, last_name').eq('id', updateData.supervisor_id).single()
+      : { data: null };
+
+    const { data: adminData } = updateData.admin_id
+      ? await supabase.from('users').select('id, first_name, last_name').eq('id', updateData.admin_id).single()
+      : { data: null };
+
+    const combinedData = {
+      ...updateData,
+      user: userData || null,
+      training: trainingData || null,
+      supervisor: supervisorData || null,
+      admin: adminData || null,
+    };
+
+    return mapRequestFromDb(combinedData);
   },
 
   async delete(id: string): Promise<boolean> {

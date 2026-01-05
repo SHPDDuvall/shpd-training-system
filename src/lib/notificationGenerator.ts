@@ -24,12 +24,7 @@ export async function generatePendingApprovalNotifications(
     // Get pending requests for supervisors
     const { data: pendingRequests, error } = await supabase
       .from('training_requests')
-      .select(`
-        id,
-        status,
-        user:users!training_requests_user_id_fkey(first_name, last_name),
-        training:training_courses(title)
-      `)
+      .select('id, status')
       .in('status', ['submitted', 'supervisor_review']);
 
     if (error) {
