@@ -124,6 +124,9 @@ export const userService = {
     if (updates.hireDate) dbUpdates.hire_date = updates.hireDate;
     dbUpdates.updated_at = new Date().toISOString();
 
+    console.log('Updating user with ID:', id);
+    console.log('Updates to apply:', dbUpdates);
+    
     const { data, error } = await supabase
       .from('users')
       .update(dbUpdates)
@@ -131,7 +134,14 @@ export const userService = {
       .select()
       .single();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.error('Error updating user:', error?.message || error);
+      console.error('Error code:', error?.code);
+      console.error('Error details:', error?.details);
+      console.error('Error hint:', error?.hint);
+      return null;
+    }
+    console.log('User updated successfully:', data);
     return mapUserFromDb(data);
   },
 
