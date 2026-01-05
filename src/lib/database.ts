@@ -391,8 +391,6 @@ export const requestService = {
     userId: string;
     notes?: string;
   }): Promise<TrainingRequest | null> {
-    console.log('=== REQUEST SERVICE CREATE ===' );
-    console.log('Input request:', request);
     
     // First, fetch the training course to get the course name
     const { data: courseData } = await supabase
@@ -404,8 +402,7 @@ export const requestService = {
     const courseName = courseData?.title || 'Unknown Course';
     // Use 'internal' as default training type (database constraint only allows: internal, external)
     const trainingType = 'internal';
-    console.log('Course name for insert:', courseName);
-    console.log('Training type for insert:', trainingType);
+
     
     // Insert the request with course_name and training_type
     const { data: insertData, error: insertError } = await supabase
@@ -421,11 +418,7 @@ export const requestService = {
       .select('*')
       .single();
 
-    console.log('Supabase insert result - data:', insertData);
-    console.log('Supabase insert result - error:', insertError);
-    
     if (insertError || !insertData) {
-      console.log('Insert failed, returning null');
       return null;
     }
 
@@ -452,7 +445,6 @@ export const requestService = {
       admin: null,
     };
 
-    console.log('Combined data:', combinedData);
     return mapRequestFromDb(combinedData);
   },
 
@@ -1128,30 +1120,11 @@ function mapRequestFromDb(data: Record<string, unknown>): TrainingRequest {
   const supervisor = data.supervisor as Record<string, unknown> | null;
   const admin = data.admin as Record<string, unknown> | null;
 
-  // DEBUG: Log the entire data structure
-  console.log('=== TRAINING REQUEST DEBUG ===');
-  console.log('Full data object:', JSON.stringify(data, null, 2));
-  console.log('User object:', user);
-  console.log('User keys:', user ? Object.keys(user) : 'null');
-  if (user) {
-    console.log('user.badge_number:', user.badge_number);
-    console.log('user.badgeNumber:', (user as any).badgeNumber);
-    console.log('All user fields:', JSON.stringify(user, null, 2));
-  }
-  console.log('data.user_badge:', data.user_badge);
-  console.log('=============================');
-
   // Extract badge number with multiple fallbacks
   const userBadge = user?.badge_number as string || 
                     (user as any)?.badgeNumber as string || 
                     data.user_badge as string || 
                     '';
-
-  // Debug logging
-  console.log('Final userBadge value:', userBadge);
-  if (!userBadge && user) {
-    console.warn('⚠️ Missing badge number for user:', user);
-  }
 
   return {
     id: data.id as string,
