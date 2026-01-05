@@ -402,8 +402,8 @@ export const requestService = {
       .single();
     
     const courseName = courseData?.title || 'Unknown Course';
-    // Use 'individual' as default training type (database constraint only allows: individual, group, department)
-    const trainingType = 'individual';
+    // Use 'internal' as default training type (database constraint only allows: internal, external)
+    const trainingType = 'internal';
     console.log('Course name for insert:', courseName);
     console.log('Training type for insert:', trainingType);
     
