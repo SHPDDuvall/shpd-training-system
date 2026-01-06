@@ -258,6 +258,8 @@ const Approvals: React.FC = () => {
   };
 
   const confirmAction = async () => {
+    // Debug: store in window for inspection
+    (window as any).debugConfirmAction = { selectedRequest, user, actionType, actionNotes, timestamp: new Date().toISOString() };
     console.log('confirmAction called:', { selectedRequest, user, actionType, actionNotes });
     if (!selectedRequest || !user) {
       console.log('confirmAction early return - missing selectedRequest or user');
