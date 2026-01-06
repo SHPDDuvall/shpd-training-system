@@ -299,10 +299,24 @@ const Approvals: React.FC = () => {
       } else {
         // Use the regular update for internal training requests
         console.log('Updating internal training request via AuthContext');
+        console.log('Request ID:', selectedRequest.id, 'New Status:', newStatus, 'Notes:', actionNotes);
         try {
+          // The updateRequestStatus function doesn't return a value, so we can't check if it succeeded
+          // Let's add a direct database check
           await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
-          (window as any).debugUpdateStep = { step: 'after_internal_update', success: true };
+          
+          // Add a small delay to allow the state to update
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          (window as any).debugUpdateStep = { 
+            step: 'after_internal_update', 
+            success: true,
+            requestId: selectedRequest.id,
+            newStatus: newStatus,
+            notes: actionNotes
+          };
         } catch (updateError: any) {
+          console.error('Update error:', updateError);
           (window as any).debugUpdateStep = { step: 'internal_update_error', error: updateError?.message || String(updateError) };
           throw updateError;
         }
