@@ -73,7 +73,33 @@ const ExternalTrainingForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Debug: Log form submission attempt
+    console.log('handleSubmit called');
+    (window as any).debugFormSubmit = {
+      user: user?.id,
+      eventName,
+      organization,
+      startDate,
+      endDate,
+      location,
+      justification,
+      selectedApproverIds,
+      validation: {
+        hasUser: !!user,
+        hasEventName: !!eventName,
+        hasOrganization: !!organization,
+        hasStartDate: !!startDate,
+        hasEndDate: !!endDate,
+        hasLocation: !!location,
+        hasJustification: !!justification,
+        hasApprovers: selectedApproverIds.length > 0
+      }
+    };
+    
     if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification || selectedApproverIds.length === 0) {
+      console.log('Validation failed');
+      (window as any).debugFormSubmit.validationFailed = true;
       return;
     }
 
@@ -82,6 +108,7 @@ const ExternalTrainingForm: React.FC = () => {
       // Use the first selected approver as the primary supervisor for backward compatibility
       const primarySupervisorId = selectedApproverIds[0];
       
+      console.log('Calling externalTrainingService.create');
       const newRequest = await externalTrainingService.create({
         userId: user.id,
         eventName,
@@ -95,6 +122,9 @@ const ExternalTrainingForm: React.FC = () => {
         supervisorId: primarySupervisorId,
         supervisorIds: selectedApproverIds,
       });
+      
+      console.log('externalTrainingService.create result:', newRequest);
+      (window as any).debugFormSubmit.createResult = newRequest;
 
       if (newRequest) {
         // Create notification for submitter
