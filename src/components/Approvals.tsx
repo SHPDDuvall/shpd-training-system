@@ -1017,7 +1017,7 @@ const Approvals: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={confirmAction}
+                onClick={() => { alert('Button clicked!'); confirmAction(); }}
                 disabled={(actionType === 'deny' && !actionNotes.trim()) || isProcessing}
                 className={`flex-1 px-4 py-2.5 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   actionType === 'approve'
