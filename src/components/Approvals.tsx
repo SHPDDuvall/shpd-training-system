@@ -287,7 +287,7 @@ const Approvals: React.FC = () => {
       if (isExternalRequest) {
         // Directly update external training request
         console.log('Updating external training request directly');
-        await externalTrainingService.updateStatus(selectedRequest.id, newStatus, actionNotes, user.id);
+        await externalTrainingService.updateStatus(selectedRequest.id, newStatus, { id: user.id, role: user.role }, actionNotes);
       } else {
         // Use the regular update for internal training requests
         console.log('Updating internal training request via AuthContext');
