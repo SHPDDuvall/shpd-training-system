@@ -194,7 +194,7 @@ const ImportData: React.FC = () => {
           }
 
           // Validate role
-          const validRoles = ['officer', 'supervisor', 'administrator', 'accounting'];
+          const validRoles = ['officer', 'supervisor', 'administrator', 'training_coordinator', 'accounting', 'staff'];
           const normalizedRole = role.toLowerCase() as User['role'];
           if (!validRoles.includes(normalizedRole)) {
             errors.push(`Row ${rowNum}: Invalid role "${role}" - using "officer" instead`);
@@ -355,7 +355,7 @@ const ImportData: React.FC = () => {
 
   // Filter officers for certificate import (only show officers, not accounting)
   const officersForImport = allUsers.filter(u => 
-    u.role === 'officer' || u.role === 'supervisor' || u.role === 'administrator'
+    u.role === 'officer' || u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator'
   );
 
   return (
@@ -849,7 +849,7 @@ const ImportData: React.FC = () => {
                   </ul>
                   <h4 className="font-medium text-slate-700 mt-4 mb-2">Optional Fields</h4>
                   <ul className="text-sm text-slate-500 space-y-1">
-                    <li>role (officer, supervisor, administrator, accounting)</li>
+                    <li>role (officer, supervisor, administrator, training_coordinator, accounting, staff)</li>
                     <li>department, rank, phone, hireDate, password</li>
                   </ul>
                 </div>

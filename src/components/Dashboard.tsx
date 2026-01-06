@@ -70,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     setIsGeneratingNotifications(true);
     try {
       const supervisorIds = allUsers
-        .filter(u => u.role === 'supervisor' || u.role === 'administrator')
+        .filter(u => u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator')
         .map(u => u.id);
       
       const accountingIds = allUsers
@@ -99,10 +99,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   const mandatoryTraining = trainings.filter(t => t.mandatory);
 
-  const pendingApprovals = user?.role === 'supervisor' || user?.role === 'administrator'
+  const pendingApprovals = user?.role === 'supervisor' || user?.role === 'administrator' || user?.role === 'training_coordinator'
     ? allRequests.filter(r => 
         (user.role === 'supervisor' && (r.status === 'submitted' || r.status === 'supervisor_review')) ||
-        (user.role === 'administrator' && r.status === 'admin_approval')
+        (user.role === 'administrator' && r.status === 'admin_approval') ||
+        (user.role === 'training_coordinator' && r.status !== 'approved' && r.status !== 'denied' && r.status !== 'completed')
       ).length
     : 0;
 
@@ -275,7 +276,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {(user?.role === 'supervisor' || user?.role === 'administrator') && (
+            {(user?.role === 'supervisor' || user?.role === 'administrator' || user?.role === 'training_coordinator') && (
               <button
                 onClick={handleGenerateNotifications}
                 disabled={isGeneratingNotifications}
@@ -297,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
       {/* Reports Quick Access for Supervisors/Admins */}
-      {(user?.role === 'supervisor' || user?.role === 'administrator') && (
+      {(user?.role === 'supervisor' || user?.role === 'administrator' || user?.role === 'training_coordinator') && (
         <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">

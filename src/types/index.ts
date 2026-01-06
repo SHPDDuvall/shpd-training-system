@@ -1,6 +1,6 @@
 // Types for the Police Training Module
 
-export type UserRole = 'officer' | 'supervisor' | 'administrator' | 'accounting' | 'staff';
+export type UserRole = 'officer' | 'supervisor' | 'administrator' | 'accounting' | 'staff' | 'training_coordinator';
 
 export type Platoon = 'A-Days' | 'B-Nights' | 'C-Nights' | 'D-Days' | '';
 

@@ -47,9 +47,9 @@ const InternalTrainingForm: React.FC = () => {
       setRequests(userRequests);
       setAllUsers(users);
       
-      // Filter supervisors and administrators for the approval dropdown
+      // Filter supervisors, administrators, and training coordinators for the approval dropdown
       const availableSupervisors = users.filter(u => 
-        u.role === 'supervisor' || u.role === 'administrator'
+        u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator'
       );
       setSupervisors(availableSupervisors);
       
@@ -113,6 +113,33 @@ const InternalTrainingForm: React.FC = () => {
               senderName: 'SHPD Training System',
             });
             console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
+          }
+          
+          // Also notify all Training Coordinators (they receive ALL training requests)
+          const trainingCoordinators = allUsers.filter(u => 
+            u.role === 'training_coordinator' && u.id !== selectedSupervisorId
+          );
+          
+          for (const coordinator of trainingCoordinators) {
+            // Create in-app notification for training coordinator
+            await notificationService.create({
+              userId: coordinator.id,
+              title: 'New Internal Training Request',
+              message: `${user.firstName} ${user.lastName} has submitted an internal training request for "${courseName}".`,
+              type: 'info',
+              link: '/approvals',
+            });
+            
+            // Send email to training coordinator
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: coordinator.email,
+              recipientName: `${coordinator.firstName} ${coordinator.lastName}`,
+              subject: `[Training Coordinator] New Internal Training Request: ${courseName}`,
+              body: `A new internal training request has been submitted.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nCourse: ${courseName}\nDate: ${trainingDate}\nLocation: ${location}\nInstructor: ${instructor}\nAttendees: ${selectedAttendees.length} selected\n\nPlease log in to the Training Management System to review this request.`,
+              senderName: 'SHPD Training System',
+            });
+            console.log('Email notification sent to training coordinator:', coordinator.email);
           }
         } catch (emailError) {
           console.error('Error sending email notifications:', emailError);

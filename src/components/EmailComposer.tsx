@@ -359,7 +359,7 @@ const EmailComposer: React.FC = () => {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
 
   const departments = [...new Set(allUsers.map(u => u.department))];
-  const roles = ['officer', 'supervisor', 'administrator', 'accounting'];
+  const roles = ['officer', 'supervisor', 'administrator', 'training_coordinator', 'accounting', 'staff'];
 
   // Calculate total attachment size
   const totalAttachmentSize = attachments.reduce((sum, a) => sum + a.size, 0);

@@ -164,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, on
           </div>
 
           {/* Supervisor Section */}
-          {(user?.role === 'supervisor' || user?.role === 'administrator') && (
+          {(user?.role === 'supervisor' || user?.role === 'administrator' || user?.role === 'training_coordinator') && (
             <div className="pt-4 mt-4 border-t border-slate-700 space-y-1">
               {isOpen && <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Supervisor</div>}
               {supervisorItems.map(renderNavItem)}
@@ -172,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, on
           )}
 
           {/* Admin Section */}
-          {(user?.role === 'administrator' || user?.role === 'supervisor') && (
+          {(user?.role === 'administrator' || user?.role === 'supervisor' || user?.role === 'training_coordinator') && (
             <div className="pt-4 mt-4 border-t border-slate-700 space-y-1">
               {isOpen && <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Administration</div>}
               {adminItems.map(renderNavItem)}

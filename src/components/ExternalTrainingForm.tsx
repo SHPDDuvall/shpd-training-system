@@ -45,10 +45,10 @@ const ExternalTrainingForm: React.FC = () => {
       const userRequests = await externalTrainingService.getByUser(user.id);
       setRequests(userRequests);
       
-      // Load all users who can be supervisors (supervisors and administrators)
+      // Load all users who can be supervisors (supervisors, administrators, and training coordinators)
       const allUsers = await userService.getAll();
       const availableSupervisors = allUsers.filter(u => 
-        u.role === 'supervisor' || u.role === 'administrator'
+        u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator'
       );
       setSupervisors(availableSupervisors);
       
@@ -116,6 +116,34 @@ const ExternalTrainingForm: React.FC = () => {
               senderName: 'SHPD Training System',
             });
             console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
+          }
+          
+          // Also notify all Training Coordinators (they receive ALL training requests)
+          const allUsers = await userService.getAll();
+          const trainingCoordinators = allUsers.filter(u => 
+            u.role === 'training_coordinator' && u.id !== selectedSupervisorId
+          );
+          
+          for (const coordinator of trainingCoordinators) {
+            // Create in-app notification for training coordinator
+            await notificationService.create({
+              userId: coordinator.id,
+              title: 'New External Training Request',
+              message: `${user.firstName} ${user.lastName} has submitted an external training request for "${eventName}".`,
+              type: 'info',
+              link: '/approvals',
+            });
+            
+            // Send email to training coordinator
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: coordinator.email,
+              recipientName: `${coordinator.firstName} ${coordinator.lastName}`,
+              subject: `[Training Coordinator] New External Training Request: ${eventName}`,
+              body: `A new external training request has been submitted.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review this request.`,
+              senderName: 'SHPD Training System',
+            });
+            console.log('Email notification sent to training coordinator:', coordinator.email);
           }
         } catch (emailError) {
           console.error('Error sending email notifications:', emailError);

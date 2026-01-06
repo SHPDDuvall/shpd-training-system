@@ -196,7 +196,7 @@ const Approvals: React.FC = () => {
     if (!userRank) return false;
     
     // Check if user is an administrator (can approve any level)
-    if (user.role === 'administrator') return true;
+    if (user.role === 'administrator' || user.role === 'training_coordinator') return true;
     
     // Check if the request is at the user's approval level
     const currentApprovalRank = request.approvalChain[request.currentApprovalLevel];
@@ -221,7 +221,11 @@ const Approvals: React.FC = () => {
       const isInSupervisorStatus = r.status === 'submitted' || r.status === 'supervisor_review';
       return isMySupervisee && isInSupervisorStatus;
     }
-    if (user?.role === 'administrator') {
+    if (user?.role === 'administrator' || user?.role === 'training_coordinator') {
+      // Training Coordinators see ALL requests at any status
+      if (user?.role === 'training_coordinator') {
+        return r.status !== 'approved' && r.status !== 'denied' && r.status !== 'completed';
+      }
       return r.status === 'admin_approval';
     }
     return false;
@@ -267,6 +271,7 @@ const Approvals: React.FC = () => {
         if (user.role === 'supervisor') {
           newStatus = 'admin_approval';
         } else {
+          // Administrator and Training Coordinator can fully approve
           newStatus = 'approved';
         }
       } else {
