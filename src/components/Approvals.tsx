@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { sendApprovalNotification, sendDenialNotification } from '@/lib/emailService';
+import { sendApprovalNotification, sendDenialNotification, sendGeneralEmail } from '@/lib/emailService';
 import { trainingService, certificateService, notificationService } from '@/lib/database';
 import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
 import { generateRequestStatusNotification } from '@/lib/notificationGenerator';
@@ -276,6 +276,25 @@ const Approvals: React.FC = () => {
       }
 
       await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
+      
+      // Send email notification for denial
+      if (actionType === 'deny') {
+        const requester = allUsers.find(u => u.id === selectedRequest.userId);
+        if (requester && requester.email) {
+          try {
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: requester.email,
+              recipientName: `${requester.firstName} ${requester.lastName}`,
+              subject: `Training Request Denied: ${selectedRequest.trainingTitle}`,
+              body: `Your training request for "${selectedRequest.trainingTitle}" has been denied.\n\nReason: ${actionNotes || 'No reason provided'}\n\nDenied by: ${user.firstName} ${user.lastName}\n\nIf you have questions about this decision, please contact your supervisor.`,
+              senderName: 'Training Management System',
+            });
+          } catch (emailError) {
+            console.error('Failed to send denial email:', emailError);
+          }
+        }
+      }
       
       setShowActionModal(false);
       setSelectedRequest(null);

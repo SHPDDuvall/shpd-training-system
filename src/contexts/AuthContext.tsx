@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUserRequests(combinedRequests);
 
     // Load all requests for supervisors/admins
-    if (user.role === 'supervisor' || user.role === 'administrator') {
+    if (user.role === 'supervisor' || user.role === 'administrator' || user.role === 'training_coordinator') {
       const allInternal = await requestService.getAll();
       const allExternal = await externalTrainingService.getAll();
       // Map external requests to TrainingRequest format
@@ -295,7 +295,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const combinedRequests = [...internalRequests, ...mappedExternalRequests];
     setUserRequests(combinedRequests);
 
-    if (user.role === 'supervisor' || user.role === 'administrator') {
+    if (user.role === 'supervisor' || user.role === 'administrator' || user.role === 'training_coordinator') {
       const allInternal = await requestService.getAll();
       const allExternal = await externalTrainingService.getAll();
       // Map external requests to TrainingRequest format
