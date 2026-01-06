@@ -1024,10 +1024,17 @@ export const accountingService = {
       updates.approved_at = new Date().toISOString();
     }
 
-    const { error } = await supabase
+    console.log('updateCostStatus called:', { id, status, updates });
+    (window as any).debugCostUpdate = { id, status, updates };
+
+    const { error, data } = await supabase
       .from('officer_training_costs')
       .update(updates)
-      .eq('id', id);
+      .eq('id', id)
+      .select();
+
+    console.log('updateCostStatus result:', { error, data });
+    (window as any).debugCostUpdateResult = { error, data };
 
     return !error;
   },
