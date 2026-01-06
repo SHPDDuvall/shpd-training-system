@@ -206,8 +206,8 @@ const TrainingRequestFilter: React.FC = () => {
         id: r.id,
         type: 'standard',
         title: r.trainingTitle,
-        userName: r.userName,
-        userBadge: r.userBadge,
+        userName: r.userName || (requestUser ? `${requestUser.firstName} ${requestUser.lastName}` : 'Unknown'),
+        userBadge: r.userBadge || requestUser?.badgeNumber || '',
         userId: r.userId,
         userPlatoon: requestUser?.platoon,
         status: r.status,
@@ -230,8 +230,8 @@ const TrainingRequestFilter: React.FC = () => {
         id: r.id,
         type: 'internal',
         title: r.courseName,
-        userName: r.userName || 'Unknown',
-        userBadge: r.userBadge || '',
+        userName: r.userName || (requestUser ? `${requestUser.firstName} ${requestUser.lastName}` : 'Unknown'),
+        userBadge: r.userBadge || requestUser?.badgeNumber || '',
         userId: r.userId,
         userPlatoon: requestUser?.platoon,
         status: r.status,
@@ -257,8 +257,8 @@ const TrainingRequestFilter: React.FC = () => {
         id: r.id,
         type: 'external',
         title: r.eventName,
-        userName: r.userName || 'Unknown',
-        userBadge: r.userBadge || '',
+        userName: r.userName || (requestUser ? `${requestUser.firstName} ${requestUser.lastName}` : 'Unknown'),
+        userBadge: r.userBadge || requestUser?.badgeNumber || '',
         userId: r.userId,
         userPlatoon: requestUser?.platoon,
         status: r.status,
@@ -297,7 +297,7 @@ const TrainingRequestFilter: React.FC = () => {
       
       // Status filter
       if (statusFilter !== 'all') {
-        if (statusFilter === 'pending' && !['submitted', 'supervisor_review', 'admin_approval', 'sergeant_review', 'lieutenant_review', 'commander_review', 'chief_approval'].includes(r.status)) {
+        if (statusFilter === 'pending' && !['pending', 'submitted', 'supervisor_review', 'admin_approval', 'sergeant_review', 'lieutenant_review', 'commander_review', 'chief_approval'].includes(r.status)) {
           return false;
         }
         if (statusFilter === 'approved' && r.status !== 'approved') {
