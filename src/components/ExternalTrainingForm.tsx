@@ -31,7 +31,7 @@ const ExternalTrainingForm: React.FC = () => {
   const [justification, setJustification] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
   const [supervisors, setSupervisors] = useState<User[]>([]);
 
   useEffect(() => {
@@ -54,21 +54,34 @@ const ExternalTrainingForm: React.FC = () => {
       
       // Pre-select user's assigned supervisor if they have one
       if (user.supervisorId) {
-        setSelectedSupervisorId(user.supervisorId);
+        setSelectedApproverIds([user.supervisorId]);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const toggleApprover = (approverId: string) => {
+    setSelectedApproverIds(prev => {
+      if (prev.includes(approverId)) {
+        return prev.filter(id => id !== approverId);
+      } else {
+        return [...prev, approverId];
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification || !selectedSupervisorId) {
+    if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification || selectedApproverIds.length === 0) {
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Use the first selected approver as the primary supervisor for backward compatibility
+      const primarySupervisorId = selectedApproverIds[0];
+      
       const newRequest = await externalTrainingService.create({
         userId: user.id,
         eventName,
@@ -79,7 +92,8 @@ const ExternalTrainingForm: React.FC = () => {
         costEstimate: parseFloat(costEstimate) || 0,
         justification,
         notes,
-        supervisorId: selectedSupervisorId,
+        supervisorId: primarySupervisorId,
+        supervisorIds: selectedApproverIds,
       });
 
       if (newRequest) {
@@ -92,36 +106,36 @@ const ExternalTrainingForm: React.FC = () => {
           link: '/external-training',
         });
 
-        // Send email notification ONLY to selected supervisor
+        // Send email notification to ALL selected approvers
         try {
-          const selectedSupervisor = supervisors.find(s => s.id === selectedSupervisorId);
+          const selectedApprovers = supervisors.filter(s => selectedApproverIds.includes(s.id));
           
-          if (selectedSupervisor) {
-            // Create in-app notification for supervisor
+          for (const approver of selectedApprovers) {
+            // Create in-app notification for approver
             await notificationService.create({
-              userId: selectedSupervisor.id,
+              userId: approver.id,
               title: 'New External Training Request',
               message: `${user.firstName} ${user.lastName} has submitted an external training request for "${eventName}" that requires your review.`,
               type: 'info',
               link: '/approvals',
             });
             
-            // Send email to selected supervisor
+            // Send email to approver
             await sendGeneralEmail({
               type: 'general',
-              recipientEmail: selectedSupervisor.email,
-              recipientName: `${selectedSupervisor.firstName} ${selectedSupervisor.lastName}`,
+              recipientEmail: approver.email,
+              recipientName: `${approver.firstName} ${approver.lastName}`,
               subject: `New External Training Request Requires Your Approval: ${eventName}`,
               body: `A new external training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
               senderName: 'SHPD Training System',
             });
-            console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
+            console.log('Email notification sent to approver:', approver.email);
           }
           
           // Also notify all Training Coordinators (they receive ALL training requests)
           const allUsers = await userService.getAll();
           const trainingCoordinators = allUsers.filter(u => 
-            u.role === 'training_coordinator' && u.id !== selectedSupervisorId
+            u.role === 'training_coordinator' && !selectedApproverIds.includes(u.id)
           );
           
           for (const coordinator of trainingCoordinators) {
@@ -168,8 +182,8 @@ const ExternalTrainingForm: React.FC = () => {
     setCostEstimate('');
     setJustification('');
     setNotes('');
-    // Reset supervisor to user's assigned supervisor or empty
-    setSelectedSupervisorId(user?.supervisorId || '');
+    // Reset approvers to user's assigned supervisor or empty
+    setSelectedApproverIds(user?.supervisorId ? [user.supervisorId] : []);
     setShowForm(false);
   };
 
@@ -376,25 +390,48 @@ const ExternalTrainingForm: React.FC = () => {
                 />
               </div>
 
-              {/* Supervisor Selection */}
+              {/* Multi-Select Approvers */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Supervisor/Approver <span className="text-red-500">*</span>
+                  Select Approver(s) <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selectedSupervisorId}
-                  onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-white"
-                >
-                  <option value="">Select your supervisor...</option>
+                <div className="border border-slate-300 rounded-lg max-h-48 overflow-y-auto">
                   {supervisors.map((supervisor) => (
-                    <option key={supervisor.id} value={supervisor.id}>
-                      {supervisor.firstName} {supervisor.lastName} - {supervisor.rank || supervisor.role}
-                    </option>
+                    <label
+                      key={supervisor.id}
+                      className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${
+                        selectedApproverIds.includes(supervisor.id) ? 'bg-amber-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedApproverIds.includes(supervisor.id)}
+                        onChange={() => toggleApprover(supervisor.id)}
+                        className="w-4 h-4 text-amber-500 border-slate-300 rounded focus:ring-amber-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-800">
+                          {supervisor.firstName} {supervisor.lastName}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {supervisor.rank || supervisor.role} • {supervisor.department}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                        supervisor.role === 'administrator' ? 'bg-purple-100 text-purple-700' :
+                        supervisor.role === 'training_coordinator' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {supervisor.role === 'training_coordinator' ? 'Training Coord' : supervisor.role}
+                      </span>
+                    </label>
                   ))}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">Select the supervisor who should review and approve this request</p>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedApproverIds.length === 0 
+                    ? 'Select at least one approver for this request' 
+                    : `${selectedApproverIds.length} approver(s) selected - all will be notified`}
+                </p>
               </div>
 
               {/* Additional Notes */}
@@ -422,7 +459,7 @@ const ExternalTrainingForm: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || selectedApproverIds.length === 0}
                   className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
@@ -453,55 +490,50 @@ const ExternalTrainingForm: React.FC = () => {
           <div className="divide-y divide-slate-200">
             {requests.map((request) => (
               <div key={request.id} className="p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-slate-800">{request.eventName}</h3>
                       {getStatusBadge(request.status)}
                       {/* 30-Day Advance Submission Indicator */}
                       {isSubmittedWithin30Days(request.submittedDate, request.startDate) ? (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700" title="Submitted 30+ days in advance">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700" title="Submitted 30+ days in advance">
                           ✓ 30+ Days
                         </span>
                       ) : (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700" title={`Submitted ${getDaysUntilTraining(request.submittedDate, request.startDate)} days before training`}>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700" title={`Submitted ${getDaysUntilTraining(request.submittedDate, request.startDate)} days before training`}>
                           ⚠ {getDaysUntilTraining(request.submittedDate, request.startDate)} Days
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-600 mb-2">{request.organization}</p>
-                    <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon size={16} className="text-slate-400" />
+                    <p className="text-sm text-slate-600 mt-1">{request.organization}</p>
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <CalendarIcon size={14} />
                         {formatDate(request.startDate)} - {formatDate(request.endDate)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <LocationIcon size={16} className="text-slate-400" />
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <LocationIcon size={14} />
                         {request.location}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <AccountingIcon size={16} className="text-slate-400" />
-                        {formatCurrency(request.costEstimate)}
-                      </div>
+                      </span>
+                      {request.costEstimate > 0 && (
+                        <span className="flex items-center gap-1">
+                          <AccountingIcon size={14} />
+                          {formatCurrency(request.costEstimate)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="text-sm text-slate-500">
-                      Submitted: {formatDate(request.submittedDate)}
-                    </div>
-                    <button
-                      onClick={() => {/* View details */}}
-                      className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
-                    >
-                      <DocumentIcon size={16} />
-                      View Details
-                    </button>
+                  <div className="text-sm text-slate-500">
+                    Submitted {formatDate(request.submittedDate)}
                   </div>
                 </div>
-                {request.justification && (
-                  <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                    <p className="text-xs font-medium text-slate-500 mb-1">Justification:</p>
-                    <p className="text-sm text-slate-700 line-clamp-2">{request.justification}</p>
+                
+                {request.denialReason && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                    <p className="text-sm text-red-700">
+                      <strong>Denial Reason:</strong> {request.denialReason}
+                    </p>
                   </div>
                 )}
               </div>
@@ -512,9 +544,9 @@ const ExternalTrainingForm: React.FC = () => {
 
       {/* Success Toast */}
       {showSuccessToast && (
-        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-slide-up z-50">
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-up z-50">
           <CheckIcon size={20} />
-          <span className="font-medium">External training request submitted!</span>
+          Request submitted successfully!
         </div>
       )}
     </div>

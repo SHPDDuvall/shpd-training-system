@@ -223,6 +223,7 @@ export interface ExternalTrainingRequest {
   status: ExternalTrainingStatus;
   submittedDate: string;
   supervisorId?: string;
+  supervisorIds?: string[]; // Multiple approvers support
   supervisorName?: string;
   supervisorApprovalDate?: string;
   adminId?: string;

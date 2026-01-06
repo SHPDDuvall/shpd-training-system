@@ -29,7 +29,7 @@ const InternalTrainingForm: React.FC = () => {
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
   const [supervisors, setSupervisors] = useState<User[]>([]);
 
   useEffect(() => {
@@ -55,19 +55,32 @@ const InternalTrainingForm: React.FC = () => {
       
       // Pre-select user's assigned supervisor if they have one
       if (user.supervisorId) {
-        setSelectedSupervisorId(user.supervisorId);
+        setSelectedApproverIds([user.supervisorId]);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const toggleApprover = (approverId: string) => {
+    setSelectedApproverIds(prev => {
+      if (prev.includes(approverId)) {
+        return prev.filter(id => id !== approverId);
+      } else {
+        return [...prev, approverId];
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !courseName || !trainingDate || !location || !instructor || !selectedSupervisorId) return;
+    if (!user || !courseName || !trainingDate || !location || !instructor || selectedApproverIds.length === 0) return;
 
     setIsSubmitting(true);
     try {
+      // Use the first selected approver as the primary supervisor for backward compatibility
+      const primarySupervisorId = selectedApproverIds[0];
+      
       const newRequest = await internalTrainingService.create({
         userId: user.id,
         courseName,
@@ -76,7 +89,8 @@ const InternalTrainingForm: React.FC = () => {
         instructor,
         attendees: selectedAttendees,
         notes,
-        supervisorId: selectedSupervisorId,
+        supervisorId: primarySupervisorId,
+        supervisorIds: selectedApproverIds,
       });
 
       if (newRequest) {
@@ -89,35 +103,35 @@ const InternalTrainingForm: React.FC = () => {
           link: '/internal-training',
         });
 
-        // Send email notification ONLY to selected supervisor
+        // Send email notification to ALL selected approvers
         try {
-          const selectedSupervisor = supervisors.find(s => s.id === selectedSupervisorId);
+          const selectedApprovers = supervisors.filter(s => selectedApproverIds.includes(s.id));
           
-          if (selectedSupervisor) {
-            // Create in-app notification for supervisor
+          for (const approver of selectedApprovers) {
+            // Create in-app notification for approver
             await notificationService.create({
-              userId: selectedSupervisor.id,
+              userId: approver.id,
               title: 'New Internal Training Request',
               message: `${user.firstName} ${user.lastName} has submitted an internal training request for "${courseName}" that requires your review.`,
               type: 'info',
               link: '/approvals',
             });
             
-            // Send email to selected supervisor
+            // Send email to approver
             await sendGeneralEmail({
               type: 'general',
-              recipientEmail: selectedSupervisor.email,
-              recipientName: `${selectedSupervisor.firstName} ${selectedSupervisor.lastName}`,
+              recipientEmail: approver.email,
+              recipientName: `${approver.firstName} ${approver.lastName}`,
               subject: `New Internal Training Request Requires Your Approval: ${courseName}`,
               body: `A new internal training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nCourse: ${courseName}\nDate: ${trainingDate}\nLocation: ${location}\nInstructor: ${instructor}\nAttendees: ${selectedAttendees.length} selected\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
               senderName: 'SHPD Training System',
             });
-            console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
+            console.log('Email notification sent to approver:', approver.email);
           }
           
           // Also notify all Training Coordinators (they receive ALL training requests)
           const trainingCoordinators = allUsers.filter(u => 
-            u.role === 'training_coordinator' && u.id !== selectedSupervisorId
+            u.role === 'training_coordinator' && !selectedApproverIds.includes(u.id)
           );
           
           for (const coordinator of trainingCoordinators) {
@@ -162,8 +176,8 @@ const InternalTrainingForm: React.FC = () => {
     setInstructor('');
     setSelectedAttendees([]);
     setNotes('');
-    // Reset supervisor to user's assigned supervisor or empty
-    setSelectedSupervisorId(user?.supervisorId || '');
+    // Reset approvers to user's assigned supervisor or empty
+    setSelectedApproverIds(user?.supervisorId ? [user.supervisorId] : []);
     setShowForm(false);
   };
 
@@ -364,25 +378,48 @@ const InternalTrainingForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Supervisor Selection */}
+              {/* Multi-Select Approvers */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Supervisor/Approver <span className="text-red-500">*</span>
+                  Select Approver(s) <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selectedSupervisorId}
-                  onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-white"
-                >
-                  <option value="">Select your supervisor...</option>
+                <div className="border border-slate-300 rounded-lg max-h-48 overflow-y-auto">
                   {supervisors.map((supervisor) => (
-                    <option key={supervisor.id} value={supervisor.id}>
-                      {supervisor.firstName} {supervisor.lastName} - {supervisor.rank || supervisor.role}
-                    </option>
+                    <label
+                      key={supervisor.id}
+                      className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${
+                        selectedApproverIds.includes(supervisor.id) ? 'bg-amber-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedApproverIds.includes(supervisor.id)}
+                        onChange={() => toggleApprover(supervisor.id)}
+                        className="w-4 h-4 text-amber-500 border-slate-300 rounded focus:ring-amber-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-800">
+                          {supervisor.firstName} {supervisor.lastName}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {supervisor.rank || supervisor.role} • {supervisor.department}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                        supervisor.role === 'administrator' ? 'bg-purple-100 text-purple-700' :
+                        supervisor.role === 'training_coordinator' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {supervisor.role === 'training_coordinator' ? 'Training Coord' : supervisor.role}
+                      </span>
+                    </label>
                   ))}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">Select the supervisor who should review and approve this request</p>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedApproverIds.length === 0 
+                    ? 'Select at least one approver for this request' 
+                    : `${selectedApproverIds.length} approver(s) selected - all will be notified`}
+                </p>
               </div>
 
               {/* Notes */}
@@ -410,7 +447,7 @@ const InternalTrainingForm: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || selectedApproverIds.length === 0}
                   className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (

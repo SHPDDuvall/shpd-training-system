@@ -1304,6 +1304,7 @@ export const internalTrainingService = {
     attendees: string[];
     notes?: string;
     supervisorId?: string;
+    supervisorIds?: string[];
   }): Promise<InternalTrainingRequest | null> {
     const insertData: Record<string, unknown> = {
       user_id: request.userId,
@@ -1317,9 +1318,14 @@ export const internalTrainingService = {
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided
+    // Add supervisor_id if provided (primary approver for backward compatibility)
     if (request.supervisorId) {
       insertData.supervisor_id = request.supervisorId;
+    }
+    
+    // Add supervisor_ids array if provided (multiple approvers)
+    if (request.supervisorIds && request.supervisorIds.length > 0) {
+      insertData.supervisor_ids = request.supervisorIds;
     }
     
     const { data, error } = await supabase
@@ -1431,6 +1437,7 @@ export const externalTrainingService = {
     justification: string;
     notes?: string;
     supervisorId?: string;
+    supervisorIds?: string[];
   }): Promise<ExternalTrainingRequest | null> {
     const insertData: Record<string, unknown> = {
       user_id: request.userId,
@@ -1446,9 +1453,14 @@ export const externalTrainingService = {
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided
+    // Add supervisor_id if provided (primary approver for backward compatibility)
     if (request.supervisorId) {
       insertData.supervisor_id = request.supervisorId;
+    }
+    
+    // Add supervisor_ids array if provided (multiple approvers)
+    if (request.supervisorIds && request.supervisorIds.length > 0) {
+      insertData.supervisor_ids = request.supervisorIds;
     }
     
     const { data, error } = await supabase

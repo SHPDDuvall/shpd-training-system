@@ -222,11 +222,8 @@ const Approvals: React.FC = () => {
       return isMySupervisee && isInSupervisorStatus;
     }
     if (user?.role === 'administrator' || user?.role === 'training_coordinator') {
-      // Training Coordinators see ALL requests at any status
-      if (user?.role === 'training_coordinator') {
-        return r.status !== 'approved' && r.status !== 'denied' && r.status !== 'completed';
-      }
-      return r.status === 'admin_approval';
+      // Administrators and Training Coordinators see ALL pending requests at any status
+      return r.status !== 'approved' && r.status !== 'denied' && r.status !== 'completed';
     }
     return false;
   });
