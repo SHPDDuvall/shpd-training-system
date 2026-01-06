@@ -258,11 +258,7 @@ const Approvals: React.FC = () => {
   };
 
   const confirmAction = async () => {
-    // Debug: store in window for inspection
-    (window as any).debugConfirmAction = { selectedRequest, user, actionType, actionNotes, timestamp: new Date().toISOString() };
-    console.log('confirmAction called:', { selectedRequest, user, actionType, actionNotes });
     if (!selectedRequest || !user) {
-      console.log('confirmAction early return - missing selectedRequest or user');
       return;
     }
 
@@ -281,45 +277,18 @@ const Approvals: React.FC = () => {
         newStatus = 'denied';
       }
 
-      // Check if this is an external training request by looking for eventName property
-      // External requests have eventName property (even if empty), internal requests have trainingId pointing to a training_courses record
-      // Better detection: check if the request has properties unique to external requests
+      // Check if this is an external training request
+      // External requests have eventName property, internal requests have trainingId pointing to a training_courses record
       const hasEventName = 'eventName' in selectedRequest;
       const hasExternalFields = 'eventLocation' in selectedRequest || 'eventDate' in selectedRequest || 'estimatedCost' in selectedRequest;
       const isExternalRequest = hasEventName || hasExternalFields;
-      console.log('Request type detection:', { isExternalRequest, hasEventName, hasExternalFields, selectedRequest });
-      
-      (window as any).debugUpdateStep = { step: 'before_update', isExternalRequest, newStatus, requestId: selectedRequest.id };
       
       if (isExternalRequest) {
         // Directly update external training request
-        console.log('Updating external training request directly');
         await externalTrainingService.updateStatus(selectedRequest.id, newStatus, { id: user.id, role: user.role }, actionNotes);
-        (window as any).debugUpdateStep = { step: 'after_external_update', success: true };
       } else {
         // Use the regular update for internal training requests
-        console.log('Updating internal training request via AuthContext');
-        console.log('Request ID:', selectedRequest.id, 'New Status:', newStatus, 'Notes:', actionNotes);
-        try {
-          // The updateRequestStatus function doesn't return a value, so we can't check if it succeeded
-          // Let's add a direct database check
-          await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
-          
-          // Add a small delay to allow the state to update
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          (window as any).debugUpdateStep = { 
-            step: 'after_internal_update', 
-            success: true,
-            requestId: selectedRequest.id,
-            newStatus: newStatus,
-            notes: actionNotes
-          };
-        } catch (updateError: any) {
-          console.error('Update error:', updateError);
-          (window as any).debugUpdateStep = { step: 'internal_update_error', error: updateError?.message || String(updateError) };
-          throw updateError;
-        }
+        await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
       }
       
       // Send email notification for denial
