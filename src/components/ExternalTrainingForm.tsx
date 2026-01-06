@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { externalTrainingService, notificationService, userService } from '@/lib/database';
 import { sendGeneralEmail } from '@/lib/emailService';
-import { ExternalTrainingRequest, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
+import { ExternalTrainingRequest, isSubmittedWithin30Days, getDaysUntilTraining, User } from '@/types';
 import {
   CalendarIcon,
   LocationIcon,
@@ -31,6 +31,8 @@ const ExternalTrainingForm: React.FC = () => {
   const [justification, setJustification] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [supervisors, setSupervisors] = useState<User[]>([]);
 
   useEffect(() => {
     loadData();
@@ -42,6 +44,18 @@ const ExternalTrainingForm: React.FC = () => {
     try {
       const userRequests = await externalTrainingService.getByUser(user.id);
       setRequests(userRequests);
+      
+      // Load all users who can be supervisors (supervisors and administrators)
+      const allUsers = await userService.getAll();
+      const availableSupervisors = allUsers.filter(u => 
+        u.role === 'supervisor' || u.role === 'administrator'
+      );
+      setSupervisors(availableSupervisors);
+      
+      // Pre-select user's assigned supervisor if they have one
+      if (user.supervisorId) {
+        setSelectedSupervisorId(user.supervisorId);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +63,7 @@ const ExternalTrainingForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification) {
+    if (!user || !eventName || !organization || !startDate || !endDate || !location || !justification || !selectedSupervisorId) {
       return;
     }
 
@@ -65,10 +79,11 @@ const ExternalTrainingForm: React.FC = () => {
         costEstimate: parseFloat(costEstimate) || 0,
         justification,
         notes,
+        supervisorId: selectedSupervisorId,
       });
 
       if (newRequest) {
-        // Create notification
+        // Create notification for submitter
         await notificationService.create({
           userId: user.id,
           title: 'External Training Request Submitted',
@@ -77,24 +92,31 @@ const ExternalTrainingForm: React.FC = () => {
           link: '/external-training',
         });
 
-        // Send email notification to supervisors/admins
+        // Send email notification ONLY to selected supervisor
         try {
-          const allUsers = await userService.getAll();
-          const approvers = allUsers.filter(u => 
-            u.role === 'supervisor' || u.role === 'administrator'
-          );
+          const selectedSupervisor = supervisors.find(s => s.id === selectedSupervisorId);
           
-          for (const approver of approvers) {
+          if (selectedSupervisor) {
+            // Create in-app notification for supervisor
+            await notificationService.create({
+              userId: selectedSupervisor.id,
+              title: 'New External Training Request',
+              message: `${user.firstName} ${user.lastName} has submitted an external training request for "${eventName}" that requires your review.`,
+              type: 'info',
+              link: '/approvals',
+            });
+            
+            // Send email to selected supervisor
             await sendGeneralEmail({
               type: 'general',
-              recipientEmail: approver.email,
-              recipientName: `${approver.firstName} ${approver.lastName}`,
-              subject: `New External Training Request: ${eventName}`,
-              body: `A new external training request has been submitted and requires your review.\n\nRequester: ${user.firstName} ${user.lastName}\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review this request.`,
+              recipientEmail: selectedSupervisor.email,
+              recipientName: `${selectedSupervisor.firstName} ${selectedSupervisor.lastName}`,
+              subject: `New External Training Request Requires Your Approval: ${eventName}`,
+              body: `A new external training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
               senderName: 'SHPD Training System',
             });
+            console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
           }
-          console.log('Email notifications sent to approvers');
         } catch (emailError) {
           console.error('Error sending email notifications:', emailError);
         }
@@ -118,6 +140,8 @@ const ExternalTrainingForm: React.FC = () => {
     setCostEstimate('');
     setJustification('');
     setNotes('');
+    // Reset supervisor to user's assigned supervisor or empty
+    setSelectedSupervisorId(user?.supervisorId || '');
     setShowForm(false);
   };
 
@@ -322,6 +346,27 @@ const ExternalTrainingForm: React.FC = () => {
                   required
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors resize-none"
                 />
+              </div>
+
+              {/* Supervisor Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Supervisor/Approver <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedSupervisorId}
+                  onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-white"
+                >
+                  <option value="">Select your supervisor...</option>
+                  {supervisors.map((supervisor) => (
+                    <option key={supervisor.id} value={supervisor.id}>
+                      {supervisor.firstName} {supervisor.lastName} - {supervisor.rank || supervisor.role}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">Select the supervisor who should review and approve this request</p>
               </div>
 
               {/* Additional Notes */}

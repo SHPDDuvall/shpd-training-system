@@ -1424,8 +1424,9 @@ export const externalTrainingService = {
     costEstimate: number;
     justification: string;
     notes?: string;
+    supervisorId?: string;
   }): Promise<ExternalTrainingRequest | null> {
-    const insertData = {
+    const insertData: Record<string, unknown> = {
       user_id: request.userId,
       event_name: request.eventName,
       organization: request.organization,
@@ -1438,14 +1439,18 @@ export const externalTrainingService = {
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
     };
+    
+    // Add supervisor_id if provided
+    if (request.supervisorId) {
+      insertData.supervisor_id = request.supervisorId;
+    }
+    
     const { data, error } = await supabase
       .from('external_training_requests')
       .insert(insertData)
       .select(`
         *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
+        user:users!user_id(id, badge_number, first_name, last_name)
       `)
       .single();
 
