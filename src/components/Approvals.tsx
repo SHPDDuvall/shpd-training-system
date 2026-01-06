@@ -282,8 +282,12 @@ const Approvals: React.FC = () => {
       }
 
       // Check if this is an external training request by looking for eventName property
-      const isExternalRequest = 'eventName' in selectedRequest && selectedRequest.eventName;
-      console.log('Request type detection:', { isExternalRequest, selectedRequest });
+      // External requests have eventName property (even if empty), internal requests have trainingId pointing to a training_courses record
+      // Better detection: check if the request has properties unique to external requests
+      const hasEventName = 'eventName' in selectedRequest;
+      const hasExternalFields = 'eventLocation' in selectedRequest || 'eventDate' in selectedRequest || 'estimatedCost' in selectedRequest;
+      const isExternalRequest = hasEventName || hasExternalFields;
+      console.log('Request type detection:', { isExternalRequest, hasEventName, hasExternalFields, selectedRequest });
       
       (window as any).debugUpdateStep = { step: 'before_update', isExternalRequest, newStatus, requestId: selectedRequest.id };
       
