@@ -244,20 +244,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // First, check if this is an external training request by looking in allRequests
     const existingRequest = allRequests.find(r => r.id === requestId);
-    const isExternalRequest = existingRequest && 'eventName' in existingRequest;
+    // Check for external request by looking for eventName property (external requests have this)
+    const isExternalRequest = existingRequest && (existingRequest as any).eventName !== undefined;
     
     console.log('updateRequestStatus called:', {
       requestId,
       status,
-      existingRequest: existingRequest ? { id: existingRequest.id, hasEventName: 'eventName' in existingRequest, eventName: (existingRequest as any).eventName } : null,
+      existingRequest: existingRequest ? { 
+        id: existingRequest.id, 
+        eventName: (existingRequest as any).eventName,
+        trainingTitle: existingRequest.trainingTitle
+      } : null,
       isExternalRequest,
       allRequestsCount: allRequests.length
     });
+    
+    // If we couldn't find the request in allRequests, try to determine type from the database
+    let actualIsExternalRequest = isExternalRequest;
+    if (!existingRequest) {
+      // Try external first
+      const extRequest = await externalTrainingService.getById(requestId);
+      if (extRequest) {
+        actualIsExternalRequest = true;
+        console.log('Found request in external_training_requests table');
+      } else {
+        actualIsExternalRequest = false;
+        console.log('Request not found in external_training_requests, assuming internal');
+      }
+    } else {
+      actualIsExternalRequest = isExternalRequest;
+    }
 
     let updatedRequest: TrainingRequest | null = null;
 
-    if (isExternalRequest) {
+    if (actualIsExternalRequest) {
       // Update external training request
+      console.log('Updating external training request...');
       const extUpdated = await externalTrainingService.updateStatus(
         requestId,
         status,

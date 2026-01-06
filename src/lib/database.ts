@@ -1409,6 +1409,23 @@ export const externalTrainingService = {
     return data.map(mapExternalTrainingFromDb);
   },
 
+  async getById(id: string): Promise<ExternalTrainingRequest | null> {
+    const { data, error } = await supabase
+      .from('external_training_requests')
+      .select(`
+        *,
+        user:users!user_id(id, badge_number, first_name, last_name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      console.error('Error fetching external training request by id:', error);
+      return null;
+    }
+    return mapExternalTrainingFromDb(data);
+  },
+
   async getByUser(userId: string): Promise<ExternalTrainingRequest[]> {
     const { data, error } = await supabase
       .from('external_training_requests')
