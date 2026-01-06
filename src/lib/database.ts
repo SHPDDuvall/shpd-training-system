@@ -1353,14 +1353,12 @@ export const internalTrainingService = {
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided (primary approver for backward compatibility)
-    if (request.supervisorId) {
-      insertData.supervisor_id = request.supervisorId;
-    }
-    
-    // Add supervisor_ids array if provided (multiple approvers)
+    // Add supervisor_id if provided (primary approver)
+    // Note: supervisor_ids column doesn't exist in the database, so we only use the first approver
     if (request.supervisorIds && request.supervisorIds.length > 0) {
-      insertData.supervisor_ids = request.supervisorIds;
+      insertData.supervisor_id = request.supervisorIds[0];
+    } else if (request.supervisorId) {
+      insertData.supervisor_id = request.supervisorId;
     }
     
     const { data, error } = await supabase
@@ -1505,14 +1503,12 @@ export const externalTrainingService = {
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided (primary approver for backward compatibility)
-    if (request.supervisorId) {
-      insertData.supervisor_id = request.supervisorId;
-    }
-    
-    // Add supervisor_ids array if provided (multiple approvers)
+    // Add supervisor_id if provided (primary approver)
+    // Note: supervisor_ids column doesn't exist in the database, so we only use the first approver
     if (request.supervisorIds && request.supervisorIds.length > 0) {
-      insertData.supervisor_ids = request.supervisorIds;
+      insertData.supervisor_id = request.supervisorIds[0];
+    } else if (request.supervisorId) {
+      insertData.supervisor_id = request.supervisorId;
     }
     
     const { data, error } = await supabase
