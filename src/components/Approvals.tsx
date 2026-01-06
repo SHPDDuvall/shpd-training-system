@@ -285,14 +285,23 @@ const Approvals: React.FC = () => {
       const isExternalRequest = 'eventName' in selectedRequest && selectedRequest.eventName;
       console.log('Request type detection:', { isExternalRequest, selectedRequest });
       
+      (window as any).debugUpdateStep = { step: 'before_update', isExternalRequest, newStatus, requestId: selectedRequest.id };
+      
       if (isExternalRequest) {
         // Directly update external training request
         console.log('Updating external training request directly');
         await externalTrainingService.updateStatus(selectedRequest.id, newStatus, { id: user.id, role: user.role }, actionNotes);
+        (window as any).debugUpdateStep = { step: 'after_external_update', success: true };
       } else {
         // Use the regular update for internal training requests
         console.log('Updating internal training request via AuthContext');
-        await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
+        try {
+          await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
+          (window as any).debugUpdateStep = { step: 'after_internal_update', success: true };
+        } catch (updateError: any) {
+          (window as any).debugUpdateStep = { step: 'internal_update_error', error: updateError?.message || String(updateError) };
+          throw updateError;
+        }
       }
       
       // Send email notification for denial
