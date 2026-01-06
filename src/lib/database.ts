@@ -1014,6 +1014,43 @@ export const accountingService = {
     status: OfficerTrainingCost['paymentStatus'],
     approvedBy?: string
   ): Promise<boolean> {
+    console.log('updateCostStatus called:', { id, status });
+    (window as any).debugCostUpdate = { id, status };
+
+    // Check if this is an external training cost (ID starts with 'ext-')
+    if (id.startsWith('ext-')) {
+      // Extract the actual external training request ID
+      const externalId = id.replace('ext-', '');
+      
+      // Map payment status to external training request status
+      let externalStatus: 'pending' | 'approved' | 'denied' | 'completed';
+      if (status === 'rejected') {
+        externalStatus = 'denied';
+      } else if (status === 'paid') {
+        externalStatus = 'completed';
+      } else if (status === 'approved') {
+        externalStatus = 'approved';
+      } else {
+        externalStatus = 'pending';
+      }
+
+      // Update the external training request status
+      const { error, data } = await supabase
+        .from('external_training_requests')
+        .update({
+          status: externalStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', externalId)
+        .select();
+
+      console.log('updateCostStatus (external) result:', { error, data });
+      (window as any).debugCostUpdateResult = { error, data };
+
+      return !error && data && data.length > 0;
+    }
+
+    // For regular cost entries, update the officer_training_costs table
     const updates: Record<string, unknown> = {
       payment_status: status,
       updated_at: new Date().toISOString(),
@@ -1023,9 +1060,6 @@ export const accountingService = {
       updates.approved_by = approvedBy;
       updates.approved_at = new Date().toISOString();
     }
-
-    console.log('updateCostStatus called:', { id, status, updates });
-    (window as any).debugCostUpdate = { id, status, updates };
 
     const { error, data } = await supabase
       .from('officer_training_costs')
