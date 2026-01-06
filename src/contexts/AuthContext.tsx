@@ -245,6 +245,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // First, check if this is an external training request by looking in allRequests
     const existingRequest = allRequests.find(r => r.id === requestId);
     const isExternalRequest = existingRequest && 'eventName' in existingRequest;
+    
+    console.log('updateRequestStatus called:', {
+      requestId,
+      status,
+      existingRequest: existingRequest ? { id: existingRequest.id, hasEventName: 'eventName' in existingRequest, eventName: (existingRequest as any).eventName } : null,
+      isExternalRequest,
+      allRequestsCount: allRequests.length
+    });
 
     let updatedRequest: TrainingRequest | null = null;
 
