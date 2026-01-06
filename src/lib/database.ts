@@ -1525,6 +1525,8 @@ export const externalTrainingService = {
       .single();
 
     if (error || !data) {
+      console.error('Error creating external training request:', error);
+      (window as any).debugCreateError = { error, insertData };
       return null;
     }
     return mapExternalTrainingFromDb(data);
