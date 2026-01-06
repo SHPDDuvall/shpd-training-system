@@ -242,17 +242,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   ) => {
     if (!user) return;
 
-    const updatedRequest = await requestService.updateStatus(
-      requestId,
-      status,
-      { id: user.id, role: user.role },
-      notes
-    );
+    // First, check if this is an external training request by looking in allRequests
+    const existingRequest = allRequests.find(r => r.id === requestId);
+    const isExternalRequest = existingRequest && 'eventName' in existingRequest;
+
+    let updatedRequest: TrainingRequest | null = null;
+
+    if (isExternalRequest) {
+      // Update external training request
+      const extUpdated = await externalTrainingService.updateStatus(
+        requestId,
+        status,
+        { id: user.id, role: user.role },
+        notes
+      );
+      if (extUpdated) {
+        // Map to TrainingRequest format
+        updatedRequest = {
+          ...extUpdated,
+          trainingId: extUpdated.id,
+          trainingTitle: extUpdated.eventName || 'External Training',
+          userName: extUpdated.userName || '',
+          userBadge: extUpdated.userBadge || ''
+        } as TrainingRequest;
+      }
+    } else {
+      // Update internal training request
+      updatedRequest = await requestService.updateStatus(
+        requestId,
+        status,
+        { id: user.id, role: user.role },
+        notes
+      );
+    }
 
     if (updatedRequest) {
       // Update local state
-      setUserRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
-      setAllRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
+      setUserRequests(prev => prev.map(r => r.id === requestId ? updatedRequest! : r));
+      setAllRequests(prev => prev.map(r => r.id === requestId ? updatedRequest! : r));
 
       // Create notification for the request owner
       const notificationType = status === 'approved' ? 'success' : 
@@ -277,7 +304,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         link: '/requests',
       });
     }
-  }, [user]);
+  }, [user, allRequests]);
 
   const refreshRequests = useCallback(async () => {
     if (!user) return;
