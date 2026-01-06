@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { sendApprovalNotification, sendDenialNotification, sendGeneralEmail } from '@/lib/emailService';
-import { trainingService, certificateService, notificationService } from '@/lib/database';
+import { trainingService, certificateService, notificationService, externalTrainingService, requestService } from '@/lib/database';
 import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
 import { generateRequestStatusNotification } from '@/lib/notificationGenerator';
 import {
@@ -279,7 +279,19 @@ const Approvals: React.FC = () => {
         newStatus = 'denied';
       }
 
-      await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
+      // Check if this is an external training request by looking for eventName property
+      const isExternalRequest = 'eventName' in selectedRequest && selectedRequest.eventName;
+      console.log('Request type detection:', { isExternalRequest, selectedRequest });
+      
+      if (isExternalRequest) {
+        // Directly update external training request
+        console.log('Updating external training request directly');
+        await externalTrainingService.updateStatus(selectedRequest.id, newStatus, actionNotes, user.id);
+      } else {
+        // Use the regular update for internal training requests
+        console.log('Updating internal training request via AuthContext');
+        await updateRequestStatus(selectedRequest.id, newStatus, actionNotes);
+      }
       
       // Send email notification for denial
       if (actionType === 'deny') {
