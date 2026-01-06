@@ -1303,25 +1303,31 @@ export const internalTrainingService = {
     instructor: string;
     attendees: string[];
     notes?: string;
+    supervisorId?: string;
   }): Promise<InternalTrainingRequest | null> {
+    const insertData: Record<string, unknown> = {
+      user_id: request.userId,
+      course_name: request.courseName,
+      training_date: request.trainingDate,
+      location: request.location,
+      instructor: request.instructor,
+      attendees: request.attendees,
+      status: 'submitted',
+      submitted_date: new Date().toISOString().split('T')[0],
+      notes: request.notes || null,
+    };
+    
+    // Add supervisor_id if provided
+    if (request.supervisorId) {
+      insertData.supervisor_id = request.supervisorId;
+    }
+    
     const { data, error } = await supabase
       .from('internal_training_requests')
-      .insert({
-        user_id: request.userId,
-        course_name: request.courseName,
-        training_date: request.trainingDate,
-        location: request.location,
-        instructor: request.instructor,
-        attendees: request.attendees,
-        status: 'submitted',
-        submitted_date: new Date().toISOString().split('T')[0],
-        notes: request.notes || null,
-      })
+      .insert(insertData)
       .select(`
         *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
+        user:users!user_id(id, badge_number, first_name, last_name)
       `)
       .single();
 

@@ -29,6 +29,8 @@ const InternalTrainingForm: React.FC = () => {
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [supervisors, setSupervisors] = useState<User[]>([]);
 
   useEffect(() => {
     loadData();
@@ -44,6 +46,17 @@ const InternalTrainingForm: React.FC = () => {
       ]);
       setRequests(userRequests);
       setAllUsers(users);
+      
+      // Filter supervisors and administrators for the approval dropdown
+      const availableSupervisors = users.filter(u => 
+        u.role === 'supervisor' || u.role === 'administrator'
+      );
+      setSupervisors(availableSupervisors);
+      
+      // Pre-select user's assigned supervisor if they have one
+      if (user.supervisorId) {
+        setSelectedSupervisorId(user.supervisorId);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +64,7 @@ const InternalTrainingForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !courseName || !trainingDate || !location || !instructor) return;
+    if (!user || !courseName || !trainingDate || !location || !instructor || !selectedSupervisorId) return;
 
     setIsSubmitting(true);
     try {
@@ -63,10 +76,11 @@ const InternalTrainingForm: React.FC = () => {
         instructor,
         attendees: selectedAttendees,
         notes,
+        supervisorId: selectedSupervisorId,
       });
 
       if (newRequest) {
-        // Create notification
+        // Create notification for submitter
         await notificationService.create({
           userId: user.id,
           title: 'Internal Training Request Submitted',
@@ -75,23 +89,31 @@ const InternalTrainingForm: React.FC = () => {
           link: '/internal-training',
         });
 
-        // Send email notification to supervisors/admins
+        // Send email notification ONLY to selected supervisor
         try {
-          const approvers = allUsers.filter(u => 
-            u.role === 'supervisor' || u.role === 'administrator'
-          );
+          const selectedSupervisor = supervisors.find(s => s.id === selectedSupervisorId);
           
-          for (const approver of approvers) {
+          if (selectedSupervisor) {
+            // Create in-app notification for supervisor
+            await notificationService.create({
+              userId: selectedSupervisor.id,
+              title: 'New Internal Training Request',
+              message: `${user.firstName} ${user.lastName} has submitted an internal training request for "${courseName}" that requires your review.`,
+              type: 'info',
+              link: '/approvals',
+            });
+            
+            // Send email to selected supervisor
             await sendGeneralEmail({
               type: 'general',
-              recipientEmail: approver.email,
-              recipientName: `${approver.firstName} ${approver.lastName}`,
-              subject: `New Internal Training Request: ${courseName}`,
-              body: `A new internal training request has been submitted and requires your review.\n\nRequester: ${user.firstName} ${user.lastName}\nCourse: ${courseName}\nDate: ${trainingDate}\nLocation: ${location}\nInstructor: ${instructor}\nAttendees: ${selectedAttendees.length} selected\n\nPlease log in to the Training Management System to review this request.`,
+              recipientEmail: selectedSupervisor.email,
+              recipientName: `${selectedSupervisor.firstName} ${selectedSupervisor.lastName}`,
+              subject: `New Internal Training Request Requires Your Approval: ${courseName}`,
+              body: `A new internal training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nCourse: ${courseName}\nDate: ${trainingDate}\nLocation: ${location}\nInstructor: ${instructor}\nAttendees: ${selectedAttendees.length} selected\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
               senderName: 'SHPD Training System',
             });
+            console.log('Email notification sent to selected supervisor:', selectedSupervisor.email);
           }
-          console.log('Email notifications sent to approvers');
         } catch (emailError) {
           console.error('Error sending email notifications:', emailError);
         }
@@ -113,6 +135,8 @@ const InternalTrainingForm: React.FC = () => {
     setInstructor('');
     setSelectedAttendees([]);
     setNotes('');
+    // Reset supervisor to user's assigned supervisor or empty
+    setSelectedSupervisorId(user?.supervisorId || '');
     setShowForm(false);
   };
 
@@ -311,6 +335,27 @@ const InternalTrainingForm: React.FC = () => {
                     {selectedAttendees.length} attendee(s) selected
                   </p>
                 )}
+              </div>
+
+              {/* Supervisor Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Supervisor/Approver <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedSupervisorId}
+                  onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-white"
+                >
+                  <option value="">Select your supervisor...</option>
+                  {supervisors.map((supervisor) => (
+                    <option key={supervisor.id} value={supervisor.id}>
+                      {supervisor.firstName} {supervisor.lastName} - {supervisor.rank || supervisor.role}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">Select the supervisor who should review and approve this request</p>
               </div>
 
               {/* Notes */}
