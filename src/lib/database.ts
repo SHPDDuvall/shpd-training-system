@@ -495,6 +495,8 @@ export const requestService = {
     }
 
     // First update the request
+    console.log('requestService.updateStatus called:', { id, status, updatedBy, notes, updates });
+    
     const { data: updateData, error: updateError } = await supabase
       .from('training_requests')
       .update(updates)
@@ -502,7 +504,21 @@ export const requestService = {
       .select('*')
       .single();
 
-    if (updateError || !updateData) return null;
+    console.log('Supabase update result:', { updateData, updateError });
+    
+    // Store debug info in window for inspection
+    (window as any).lastSupabaseUpdate = { 
+      id, 
+      status, 
+      updates, 
+      updateData, 
+      updateError: updateError ? { message: updateError.message, code: updateError.code, details: updateError.details } : null 
+    };
+
+    if (updateError || !updateData) {
+      console.error('Update failed:', updateError);
+      return null;
+    }
 
     // Fetch related data separately
     const { data: userData } = await supabase
