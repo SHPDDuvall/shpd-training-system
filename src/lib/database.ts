@@ -920,7 +920,7 @@ export const accountingService = {
         costType: 'training' as const,
         budgetCode: '',
         fiscalYear: new Date(req.submittedDate).getFullYear().toString(),
-        paymentStatus: req.status === 'approved' ? 'approved' as const : req.status === 'completed' ? 'paid' as const : 'pending' as const,
+        paymentStatus: req.status === 'approved' ? 'approved' as const : req.status === 'completed' ? 'paid' as const : req.status === 'denied' ? 'rejected' as const : 'pending' as const,
         notes: req.notes || '',
         createdAt: req.submittedDate,
         updatedAt: req.submittedDate,
@@ -1014,9 +1014,6 @@ export const accountingService = {
     status: OfficerTrainingCost['paymentStatus'],
     approvedBy?: string
   ): Promise<boolean> {
-    console.log('updateCostStatus called:', { id, status });
-    (window as any).debugCostUpdate = { id, status };
-
     // Check if this is an external training cost (ID starts with 'ext-')
     if (id.startsWith('ext-')) {
       // Extract the actual external training request ID
@@ -1044,9 +1041,6 @@ export const accountingService = {
         .eq('id', externalId)
         .select();
 
-      console.log('updateCostStatus (external) result:', { error, data });
-      (window as any).debugCostUpdateResult = { error, data };
-
       return !error && data && data.length > 0;
     }
 
@@ -1066,9 +1060,6 @@ export const accountingService = {
       .update(updates)
       .eq('id', id)
       .select();
-
-    console.log('updateCostStatus result:', { error, data });
-    (window as any).debugCostUpdateResult = { error, data };
 
     return !error;
   },

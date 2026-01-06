@@ -1193,17 +1193,9 @@ const Accounting: React.FC = () => {
   };
 
   const handleQuickStatusChange = async (id: string, newStatus: OfficerTrainingCost['paymentStatus']) => {
-    console.log('handleQuickStatusChange called:', { id, newStatus, user: user?.id });
-    (window as any).debugQuickStatusChange = { id, newStatus, userId: user?.id, timestamp: new Date().toISOString() };
-    if (!user) {
-      console.log('No user, returning early');
-      return;
-    }
+    if (!user) return;
     
-    console.log('Calling accountingService.updateCostStatus...');
     const success = await accountingService.updateCostStatus(id, newStatus, user.id);
-    console.log('updateCostStatus result:', success);
-    (window as any).debugQuickStatusChangeResult = { success, timestamp: new Date().toISOString() };
     
     if (success) {
       accountingService.logAccess({
