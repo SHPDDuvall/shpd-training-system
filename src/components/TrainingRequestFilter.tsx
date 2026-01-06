@@ -23,6 +23,7 @@ import {
   LocationIcon,
   AccountingIcon,
   ChevronDownIcon,
+  EditIcon,
 } from '@/components/icons/Icons';
 
 type RequestType = 'all' | 'standard' | 'internal' | 'external';
@@ -44,6 +45,8 @@ interface CombinedRequest {
   cost?: number;
   isCompliant?: boolean;
   daysAdvance?: number;
+  supervisorId?: string;
+  supervisorName?: string;
   originalData: TrainingRequest | ExternalTrainingRequest | InternalTrainingRequest;
 }
 
@@ -65,6 +68,13 @@ const TrainingRequestFilter: React.FC = () => {
   const [internalRequests, setInternalRequests] = useState<InternalTrainingRequest[]>([]);
   const [externalRequests, setExternalRequests] = useState<ExternalTrainingRequest[]>([]);
   const [trainings, setTrainings] = useState<{id: string; title: string; date: string}[]>([]);
+  
+  // Edit supervisor modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<CombinedRequest | null>(null);
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   
   // Fetch all data
   const fetchData = async () => {
@@ -120,6 +130,7 @@ const TrainingRequestFilter: React.FC = () => {
           notes: r.notes as string | undefined,
           denialReason: r.denial_reason as string | undefined,
           createdAt: r.created_at as string,
+          supervisorId: r.supervisor_id as string | undefined,
         })));
       }
       
@@ -147,6 +158,7 @@ const TrainingRequestFilter: React.FC = () => {
           notes: r.notes as string | undefined,
           denialReason: r.denial_reason as string | undefined,
           createdAt: r.created_at as string,
+          supervisorId: r.supervisor_id as string | undefined,
         })));
       }
       
@@ -210,6 +222,7 @@ const TrainingRequestFilter: React.FC = () => {
     // Add internal requests
     internalRequests.forEach(r => {
       const requestUser = getUserById(r.userId);
+      const supervisor = (r as any).supervisorId ? getUserById((r as any).supervisorId) : null;
       const isCompliant = isSubmittedWithin30Days(r.submittedDate, r.trainingDate);
       const daysAdvance = getDaysUntilTraining(r.submittedDate, r.trainingDate);
       
@@ -227,6 +240,8 @@ const TrainingRequestFilter: React.FC = () => {
         location: r.location,
         isCompliant,
         daysAdvance,
+        supervisorId: (r as any).supervisorId,
+        supervisorName: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : undefined,
         originalData: r,
       });
     });
@@ -234,6 +249,7 @@ const TrainingRequestFilter: React.FC = () => {
     // Add external requests
     externalRequests.forEach(r => {
       const requestUser = getUserById(r.userId);
+      const supervisor = (r as any).supervisorId ? getUserById((r as any).supervisorId) : null;
       const isCompliant = isSubmittedWithin30Days(r.submittedDate, r.startDate);
       const daysAdvance = getDaysUntilTraining(r.submittedDate, r.startDate);
       
@@ -252,6 +268,8 @@ const TrainingRequestFilter: React.FC = () => {
         cost: r.costEstimate,
         isCompliant,
         daysAdvance,
+        supervisorId: (r as any).supervisorId,
+        supervisorName: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : undefined,
         originalData: r,
       });
     });
@@ -430,6 +448,58 @@ const TrainingRequestFilter: React.FC = () => {
     setTimelineFilter('all');
     setDateFrom('');
     setDateTo('');
+  };
+  
+  // Get supervisors list
+  const supervisors = useMemo(() => {
+    return allUsers.filter(u => u.role === 'supervisor' || u.role === 'administrator');
+  }, [allUsers]);
+  
+  // Open edit supervisor modal
+  const openEditModal = (request: CombinedRequest) => {
+    setEditingRequest(request);
+    setSelectedSupervisorId(request.supervisorId || '');
+    setSaveError('');
+    setShowEditModal(true);
+  };
+  
+  // Save supervisor assignment
+  const saveSupervisorAssignment = async () => {
+    if (!editingRequest || !selectedSupervisorId) {
+      setSaveError('Please select a supervisor');
+      return;
+    }
+    
+    setIsSaving(true);
+    setSaveError('');
+    
+    try {
+      let tableName = '';
+      if (editingRequest.type === 'external') {
+        tableName = 'external_training_requests';
+      } else if (editingRequest.type === 'internal') {
+        tableName = 'internal_training_requests';
+      } else {
+        tableName = 'training_requests';
+      }
+      
+      const { error } = await supabase
+        .from(tableName)
+        .update({ supervisor_id: selectedSupervisorId })
+        .eq('id', editingRequest.id);
+      
+      if (error) throw error;
+      
+      // Refresh data
+      await fetchData();
+      setShowEditModal(false);
+      setEditingRequest(null);
+    } catch (err) {
+      console.error('Error saving supervisor assignment:', err);
+      setSaveError('Failed to save. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   if (isLoading) {
@@ -679,14 +749,113 @@ const TrainingRequestFilter: React.FC = () => {
                           ${request.cost.toFixed(2)}
                         </div>
                       )}
+                      {/* Supervisor assignment */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">Approver:</span>
+                        {request.supervisorName ? (
+                          <span className="text-slate-700">{request.supervisorName}</span>
+                        ) : (
+                          <span className="text-orange-600 italic">Not assigned</span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  {/* Edit button for admins */}
+                  {(user?.role === 'administrator' || user?.role === 'supervisor') && (
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => openEditModal(request)}
+                        className="px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors flex items-center gap-1"
+                        title="Edit supervisor assignment"
+                      >
+                        <EditIcon size={16} />
+                        Assign Approver
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      {/* Edit Supervisor Modal */}
+      {showEditModal && editingRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">Assign Approver</h3>
+              <p className="text-sm text-slate-600 mt-1">Select the supervisor who should review this request</p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Request Info */}
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-slate-800">{editingRequest.title}</div>
+                <div className="text-sm text-slate-600 mt-1">
+                  Submitted by: {editingRequest.userName} (#{editingRequest.userBadge})
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Type: {editingRequest.type.charAt(0).toUpperCase() + editingRequest.type.slice(1)} Training
+                </div>
+              </div>
+              
+              {/* Supervisor Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Supervisor/Approver <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedSupervisorId}
+                  onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-white"
+                >
+                  <option value="">Select a supervisor...</option>
+                  {supervisors.map((supervisor) => (
+                    <option key={supervisor.id} value={supervisor.id}>
+                      {supervisor.firstName} {supervisor.lastName} - {supervisor.rank || supervisor.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {saveError}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingRequest(null);
+                }}
+                className="px-4 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveSupervisorAssignment}
+                disabled={isSaving || !selectedSupervisorId}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Assignment'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
