@@ -258,7 +258,11 @@ const Approvals: React.FC = () => {
   };
 
   const confirmAction = async () => {
-    if (!selectedRequest || !user) return;
+    console.log('confirmAction called:', { selectedRequest, user, actionType, actionNotes });
+    if (!selectedRequest || !user) {
+      console.log('confirmAction early return - missing selectedRequest or user');
+      return;
+    }
 
     setIsProcessing(true);
     try {
