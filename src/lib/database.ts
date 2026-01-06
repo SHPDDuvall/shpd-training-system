@@ -1386,13 +1386,14 @@ export const externalTrainingService = {
       .from('external_training_requests')
       .select(`
         *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
+        user:users!user_id(id, badge_number, first_name, last_name)
       `)
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) {
+      console.error('Error fetching external training requests:', error);
+      return [];
+    }
     return data.map(mapExternalTrainingFromDb);
   },
 
@@ -1401,14 +1402,15 @@ export const externalTrainingService = {
       .from('external_training_requests')
       .select(`
         *,
-        user:users!user_id(id, badge_number, first_name, last_name),
-        supervisor:users!supervisor_id(id, first_name, last_name),
-        admin:users!admin_id(id, first_name, last_name)
+        user:users!user_id(id, badge_number, first_name, last_name)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) {
+      console.error('Error fetching external training requests for user:', error);
+      return [];
+    }
     return data.map(mapExternalTrainingFromDb);
   },
 
