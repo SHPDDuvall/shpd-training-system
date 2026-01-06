@@ -479,12 +479,12 @@ export const requestService = {
 
     if (status === 'supervisor_review' || status === 'admin_approval') {
       updates.supervisor_id = updatedBy.id;
-      updates.supervisor_approval_date = new Date().toISOString().split('T')[0];
+      // Note: supervisor_approval_date column doesn't exist in training_requests table
     }
 
     if (status === 'approved' || status === 'denied') {
       updates.admin_id = updatedBy.id;
-      updates.admin_approval_date = new Date().toISOString().split('T')[0];
+      // Note: admin_approval_date column doesn't exist in training_requests table
       if (status === 'denied' && notes) {
         updates.denial_reason = notes;
       }
@@ -1370,12 +1370,12 @@ export const internalTrainingService = {
 
     if (status === 'supervisor_review' || status === 'admin_approval') {
       updates.supervisor_id = updatedBy.id;
-      updates.supervisor_approval_date = new Date().toISOString().split('T')[0];
+      // Note: supervisor_approval_date column doesn't exist in training_requests table
     }
 
     if (status === 'approved' || status === 'denied') {
       updates.admin_id = updatedBy.id;
-      updates.admin_approval_date = new Date().toISOString().split('T')[0];
+      // Note: admin_approval_date column doesn't exist in training_requests table
       if (status === 'denied' && notes) {
         updates.denial_reason = notes;
       }
@@ -1524,12 +1524,12 @@ export const externalTrainingService = {
 
     if (status === 'supervisor_review' || status === 'admin_approval') {
       updates.supervisor_id = updatedBy.id;
-      updates.supervisor_approval_date = new Date().toISOString().split('T')[0];
+      // Note: supervisor_approval_date column doesn't exist in training_requests table
     }
 
     if (status === 'approved' || status === 'denied') {
       updates.admin_id = updatedBy.id;
-      updates.admin_approval_date = new Date().toISOString().split('T')[0];
+      // Note: admin_approval_date column doesn't exist in training_requests table
       if (status === 'denied' && notes) {
         updates.denial_reason = notes;
       }
