@@ -1070,6 +1070,21 @@ export const accountingService = {
   },
 
   async deleteCost(id: string): Promise<boolean> {
+    // Check if this is an external training cost (ID starts with 'ext-')
+    if (id.startsWith('ext-')) {
+      // Extract the actual external training request ID
+      const externalId = id.replace('ext-', '');
+      
+      // Delete from external_training_requests table
+      const { error } = await supabase
+        .from('external_training_requests')
+        .delete()
+        .eq('id', externalId);
+      
+      return !error;
+    }
+    
+    // For regular cost entries, delete from officer_training_costs table
     const { error } = await supabase
       .from('officer_training_costs')
       .delete()
