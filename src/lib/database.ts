@@ -605,7 +605,12 @@ export const notificationService = {
       .select()
       .single();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.error('Error creating notification:', error?.message || 'No data returned');
+      console.error('Notification details:', notification);
+      return null;
+    }
+    console.log('Notification created successfully:', data);
     return mapNotificationFromDb(data);
   },
 

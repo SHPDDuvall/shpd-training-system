@@ -128,13 +128,19 @@ const ExternalTrainingForm: React.FC = () => {
 
       if (newRequest) {
         // Create notification for submitter
-        await notificationService.create({
-          userId: user.id,
-          title: 'External Training Request Submitted',
-          message: `Your request for "${eventName}" has been submitted for approval.`,
-          type: 'success',
-          link: '/external-training',
-        });
+        console.log('Creating notification for user:', user.id);
+        try {
+          const notification = await notificationService.create({
+            userId: user.id,
+            title: 'External Training Request Submitted',
+            message: `Your request for "${eventName}" has been submitted for approval.`,
+            type: 'success',
+            link: '/external-training',
+          });
+          console.log('Notification creation result:', notification);
+        } catch (notifError) {
+          console.error('Error creating notification:', notifError);
+        }
 
         // Send email notification to ALL selected approvers
         try {
