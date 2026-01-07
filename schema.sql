@@ -74,3 +74,42 @@ CREATE INDEX IF NOT EXISTS idx_training_requests_user_id ON training_requests(us
 CREATE INDEX IF NOT EXISTS idx_training_requests_status ON training_requests(status);
 CREATE INDEX IF NOT EXISTS idx_training_requests_supervisor_id ON training_requests(supervisor_id);
 CREATE INDEX IF NOT EXISTS idx_training_requests_admin_id ON training_requests(admin_id);
+
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('info', 'success', 'warning', 'error')),
+  link TEXT,
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on notifications
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to read their own notifications
+CREATE POLICY "Users can view their own notifications"
+ON notifications FOR SELECT
+TO authenticated, anon
+USING (true);
+
+-- Allow inserting notifications for any user
+CREATE POLICY "Allow inserting notifications"
+ON notifications FOR INSERT
+TO authenticated, anon
+WITH CHECK (true);
+
+-- Allow users to update their own notifications (mark as read)
+CREATE POLICY "Users can update their own notifications"
+ON notifications FOR UPDATE
+TO authenticated, anon
+USING (true);
+
+-- Create index for better performance
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);

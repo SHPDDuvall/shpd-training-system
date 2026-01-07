@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import StaffTrainingOverview from './StaffTrainingOverview';
 import { supabase } from '@/lib/supabase';
 import { mockUsers, mockTrainingOpportunities, mockTrainingRequests } from '@/data/mockData';
 import {
@@ -63,7 +64,7 @@ const ReportingDashboard: React.FC = () => {
   const { user } = useAuth();
   const [selectedDepartment, setSelectedDepartment] = useState<string>('All');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('year');
-  const [activeTab, setActiveTab] = useState<'overview' | 'compliance' | 'certificates' | 'budget'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'compliance' | 'certificates' | 'budget' | 'staff'>('overview');
   const [budgetData, setBudgetData] = useState(mockBudgetData);
   const [isLoadingBudget, setIsLoadingBudget] = useState(false);
   const [expandedComplianceItems, setExpandedComplianceItems] = useState<Set<string>>(new Set());
@@ -509,6 +510,7 @@ const ReportingDashboard: React.FC = () => {
               { id: 'compliance', label: 'Compliance Rates', icon: TargetIcon },
               { id: 'certificates', label: 'Certificate Alerts', icon: CertificateIcon },
               { id: 'budget', label: 'Budget Utilization', icon: AccountingIcon },
+              { id: 'staff', label: 'Staff Overview', icon: UsersIcon },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -989,6 +991,11 @@ const ReportingDashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+          )}
+
+          {/* Staff Overview Tab */}
+          {activeTab === 'staff' && (
+            <StaffTrainingOverview />
           )}
         </div>
       </div>
