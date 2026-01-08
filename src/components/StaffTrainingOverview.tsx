@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -43,6 +44,8 @@ interface TrainingRecord {
   certificateSubmitted: boolean;
   certificateSubmittedDate: string | null;
   certificateFileUrl: string | null;
+  isCpt: boolean;
+  cptHours: number;
 }
 
 interface StaffTrainingStatus {
@@ -52,7 +55,13 @@ interface StaffTrainingStatus {
   completedCount: number;
   pendingCount: number;
   totalCount: number;
+  cptCompletedHours: number;
+  cptRemainingHours: number;
+  cptProgress: number;
+  isCptComplete: boolean;
 }
+
+const CPT_REQUIRED_HOURS = 40; // Example: 40 CPT hours required
 
 const StaffTrainingOverview: React.FC = () => {
   const { user } = useAuth();
@@ -106,6 +115,8 @@ const StaffTrainingOverview: React.FC = () => {
           certificateSubmitted: training.certificate_submitted || false,
           certificateSubmittedDate: training.certificate_submitted_date,
           certificateFileUrl: training.certificate_file_url,
+          isCpt: training.is_cpt || false,
+          cptHours: training.cpt_hours || 0,
         };
 
         const existing = staffTrainingMap.get(training.user_id) || [];
@@ -124,6 +135,13 @@ const StaffTrainingOverview: React.FC = () => {
           const pendingCount = trainings.filter(t => 
             !t.trainingCompleted || !t.supervisorOverviewCompleted || !t.certificateSubmitted
           ).length;
+
+          const cptCompletedHours = trainings
+            .filter(t => t.isCpt && t.trainingCompleted && t.certificateSubmitted)
+            .reduce((sum, t) => sum + t.cptHours, 0);
+          const cptRemainingHours = Math.max(0, CPT_REQUIRED_HOURS - cptCompletedHours);
+          const cptProgress = Math.min(100, (cptCompletedHours / CPT_REQUIRED_HOURS) * 100);
+          const isCptComplete = cptCompletedHours >= CPT_REQUIRED_HOURS;
 
           let completionStatus: 'complete' | 'incomplete' | 'no_training' = 'no_training';
           if (trainings.length > 0) {
@@ -145,6 +163,10 @@ const StaffTrainingOverview: React.FC = () => {
             completedCount,
             pendingCount,
             totalCount: trainings.length,
+            cptCompletedHours,
+            cptRemainingHours,
+            cptProgress,
+            isCptComplete,
           };
         });
 
@@ -271,17 +293,20 @@ const StaffTrainingOverview: React.FC = () => {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Name', 'Badge', 'Department', 'Rank', 'Status', 'Total Trainings', 'Completed', 'Pending'];
+    const headers = ['Name', 'Badge', 'Department', 'Rank', 'Status', 'Total Trainings', 'Completed', 'Pending', 'CPT Completed Hours', 'CPT Remaining Hours', 'CPT Complete'];
     const rows = filteredStaffData.map(s => [
       `${s.staff.lastName}, ${s.staff.firstName}`,
       s.staff.badgeNumber,
       s.staff.department,
       s.staff.rank,
-      s.completionStatus === 'complete' ? 'All Complete' : 
+      s.completionStatus === 'complete' ? 'All Complete' :
         s.completionStatus === 'incomplete' ? 'Items Pending' : 'No Training',
       s.totalCount,
       s.completedCount,
       s.pendingCount,
+      s.cptCompletedHours,
+      s.cptRemainingHours,
+      s.isCptComplete ? 'Yes' : 'No',
     ]);
 
     const csvContent = [
@@ -309,391 +334,248 @@ const StaffTrainingOverview: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: 'complete' | 'incomplete' | 'no_training') => {
-    switch (status) {
-      case 'complete':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            <CheckCircleIcon className="w-3 h-3 mr-1" />
-            All Complete
-          </span>
-        );
-      case 'incomplete':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <XCircleIcon className="w-3 h-3 mr-1" />
-            Items Pending
-          </span>
-        );
-      case 'no_training':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-            No Training
-          </span>
-        );
-    }
-  };
-
-  const CompletionCheckbox: React.FC<{
-    checked: boolean;
-    label: string;
-    onChange: (checked: boolean) => void;
-    disabled?: boolean;
-  }> = ({ checked, label, onChange, disabled }) => (
-    <label className="flex items-center space-x-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled}
-        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-      />
-      <span className={`text-sm ${checked ? 'text-green-600 font-medium' : 'text-gray-600'}`}>
-        {label}
-      </span>
-      {checked && <CheckCircleIcon className="w-4 h-4 text-green-500" />}
-    </label>
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Staff Training Overview</h2>
-          <p className="text-gray-600">Track training completion, supervisor reviews, and certificate submissions</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <RefreshIcon className="w-4 h-4 mr-2" />
-            Refresh
-          </button>
-          <button
-            onClick={exportToCSV}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export CSV
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Staff Training Overview</h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Staff</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <UsersIcon className="w-6 h-6 text-blue-600" />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Total Staff Monitored</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
           </div>
+          <UsersIcon className="w-10 h-10 text-blue-400" />
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">All Complete</p>
-              <p className="text-2xl font-bold text-green-600">{stats.complete}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckCircleIcon className="w-6 h-6 text-green-600" />
-            </div>
+        <div className="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">All Training Complete</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.complete}</p>
           </div>
+          <CheckCircleIcon className="w-10 h-10 text-green-400" />
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Items Pending</p>
-              <p className="text-2xl font-bold text-red-600">{stats.incomplete}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <XCircleIcon className="w-6 h-6 text-red-600" />
-            </div>
+        <div className="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Training Incomplete</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.incomplete}</p>
           </div>
+          <XCircleIcon className="w-10 h-10 text-red-400" />
         </div>
+        <div className="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">No Training Records</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.noTraining}</p>
+          </div>
+          <WarningIcon className="w-10 h-10 text-yellow-400" />
+        </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">No Training</p>
-              <p className="text-2xl font-bold text-gray-500">{stats.noTraining}</p>
+      {/* Filters and Search */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="relative w-full md:w-1/3">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search staff by name or badge..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 w-full md:w-2/3 justify-end">
+            <div className="w-full md:w-auto">
+              <label htmlFor="departmentFilter" className="sr-only">Filter by Department</label>
+              <select
+                id="departmentFilter"
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+              >
+                {departments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
             </div>
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <WarningIcon className="w-6 h-6 text-gray-500" />
+
+            <div className="w-full md:w-auto">
+              <label htmlFor="statusFilter" className="sr-only">Filter by Status</label>
+              <select
+                id="statusFilter"
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All Statuses</option>
+                <option value="complete">All Complete</option>
+                <option value="incomplete">Items Pending</option>
+                <option value="no_training">No Training Records</option>
+              </select>
             </div>
+
+            <button
+              onClick={exportToCSV}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <DownloadIcon className="-ml-1 mr-2 h-5 w-5" />
+              Export CSV
+            </button>
+            <button
+              onClick={fetchData}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <RefreshIcon className="-ml-1 mr-2 h-5 w-5" />
+              Refresh Data
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name or badge number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Department Filter */}
-          <div className="sm:w-48">
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="sm:w-48">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="All">All Statuses</option>
-              <option value="complete">All Complete</option>
-              <option value="incomplete">Items Pending</option>
-              <option value="no_training">No Training</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Staff List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
-          <div className="col-span-1">Status</div>
-          <div 
-            className="col-span-3 flex items-center cursor-pointer hover:text-gray-700"
-            onClick={() => {
-              if (sortBy === 'name') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              else { setSortBy('name'); setSortOrder('asc'); }
-            }}
-          >
-            Name
-            {sortBy === 'name' && (sortOrder === 'asc' ? <ChevronUpIcon className="w-4 h-4 ml-1" /> : <ChevronDownIcon className="w-4 h-4 ml-1" />)}
-          </div>
-          <div className="col-span-1">Badge</div>
-          <div 
-            className="col-span-2 flex items-center cursor-pointer hover:text-gray-700"
-            onClick={() => {
-              if (sortBy === 'department') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              else { setSortBy('department'); setSortOrder('asc'); }
-            }}
-          >
-            Department
-            {sortBy === 'department' && (sortOrder === 'asc' ? <ChevronUpIcon className="w-4 h-4 ml-1" /> : <ChevronDownIcon className="w-4 h-4 ml-1" />)}
-          </div>
-          <div className="col-span-2">Trainings</div>
-          <div className="col-span-2">Completion</div>
-          <div className="col-span-1">Actions</div>
-        </div>
-
-        {/* Staff Rows */}
-        <div className="divide-y divide-gray-200">
-          {filteredStaffData.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              No staff members found matching your criteria.
-            </div>
-          ) : (
-            filteredStaffData.map((staffStatus) => (
-              <div key={staffStatus.staff.id}>
-                {/* Main Row */}
-                <div 
-                  className={`grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 cursor-pointer ${
-                    expandedStaff.has(staffStatus.staff.id) ? 'bg-blue-50' : ''
-                  }`}
-                  onClick={() => staffStatus.totalCount > 0 && toggleExpanded(staffStatus.staff.id)}
-                >
-                  <div className="col-span-1">
-                    {getStatusIcon(staffStatus.completionStatus)}
-                  </div>
-                  <div className="col-span-3">
-                    <p className="font-medium text-gray-900">
-                      {staffStatus.staff.lastName}, {staffStatus.staff.firstName}
-                    </p>
-                    <p className="text-sm text-gray-500">{staffStatus.staff.rank}</p>
-                  </div>
-                  <div className="col-span-1 text-gray-600">
-                    #{staffStatus.staff.badgeNumber}
-                  </div>
-                  <div className="col-span-2 text-gray-600">
-                    {staffStatus.staff.department}
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-900 font-medium">{staffStatus.totalCount}</span>
-                    <span className="text-gray-500 text-sm ml-1">
-                      ({staffStatus.completedCount} done, {staffStatus.pendingCount} pending)
-                    </span>
-                  </div>
-                  <div className="col-span-2">
-                    {getStatusBadge(staffStatus.completionStatus)}
-                  </div>
-                  <div className="col-span-1">
-                    {staffStatus.totalCount > 0 && (
-                      <button className="p-2 hover:bg-gray-100 rounded-lg">
-                        {expandedStaff.has(staffStatus.staff.id) ? (
-                          <ChevronUpIcon className="w-5 h-5 text-gray-500" />
-                        ) : (
-                          <ChevronDownIcon className="w-5 h-5 text-gray-500" />
-                        )}
+      {/* Staff Training Table */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        {loading ? (
+          <div className="p-6 text-center text-gray-500">Loading staff training data...</div>
+        ) : filteredStaffData.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">No staff training records found matching your criteria.</div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button className="flex items-center" onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                    Staff Member
+                    {sortBy === 'name' && (sortOrder === 'asc' ? <ChevronUpIcon className="ml-1 w-4 h-4" /> : <ChevronDownIcon className="ml-1 w-4 h-4" />)}
+                  </button>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Badge #</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button className="flex items-center" onClick={() => { setSortBy('department'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                    Department
+                    {sortBy === 'department' && (sortOrder === 'asc' ? <ChevronUpIcon className="ml-1 w-4 h-4" /> : <ChevronDownIcon className="ml-1 w-4 h-4" />)}
+                  </button>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button className="flex items-center" onClick={() => { setSortBy('status'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }}>
+                    Overall Status
+                    {sortBy === 'status' && (sortOrder === 'asc' ? <ChevronUpIcon className="ml-1 w-4 h-4" /> : <ChevronDownIcon className="ml-1 w-4 h-4" />)}
+                  </button>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPT Progress</th>
+                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Expand</span></th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredStaffData.map((staffStatus) => (
+                <React.Fragment key={staffStatus.staff.id}>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {staffStatus.staff.firstName} {staffStatus.staff.lastName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{staffStatus.staff.badgeNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{staffStatus.staff.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center">
+                      {getStatusIcon(staffStatus.completionStatus)}
+                      <span className="ml-2">
+                        {staffStatus.completionStatus === 'complete' && 'All Complete'}
+                        {staffStatus.completionStatus === 'incomplete' && 'Items Pending'}
+                        {staffStatus.completionStatus === 'no_training' && 'No Training Records'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${staffStatus.cptProgress}%` }}></div>
+                      </div>
+                      <span className="text-xs text-gray-600">{staffStatus.cptCompletedHours} / {CPT_REQUIRED_HOURS} hours {staffStatus.isCptComplete && '(Complete)'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => toggleExpanded(staffStatus.staff.id)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        {expandedStaff.has(staffStatus.staff.id) ? 'Collapse' : 'Expand'}
                       </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Expanded Training Details */}
-                {expandedStaff.has(staffStatus.staff.id) && staffStatus.trainings.length > 0 && (
-                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Training Records</h4>
-                    <div className="space-y-3">
-                      {staffStatus.trainings.map((training) => {
-                        const isComplete = training.trainingCompleted && 
-                          training.supervisorOverviewCompleted && 
-                          training.certificateSubmitted;
-                        
-                        return (
-                          <div 
-                            key={training.id}
-                            className={`p-4 rounded-lg border ${
-                              isComplete ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{training.eventName}</h5>
-                                <p className="text-sm text-gray-500">
-                                  {training.organization} • {new Date(training.startDate).toLocaleDateString()} - {new Date(training.endDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {isComplete ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    <CheckCircleIcon className="w-3 h-3 mr-1" />
-                                    Complete
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    <XCircleIcon className="w-3 h-3 mr-1" />
-                                    Incomplete
-                                  </span>
-                                )}
-                              </div>
+                    </td>
+                  </tr>
+                  {expandedStaff.has(staffStatus.staff.id) && (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <div className="bg-gray-50 p-4 border-t border-gray-200">
+                          <h4 className="text-lg font-medium text-gray-900 mb-3">Training Details for {staffStatus.staff.firstName} {staffStatus.staff.lastName}</h4>
+                          {staffStatus.trainings.length === 0 ? (
+                            <p className="text-sm text-gray-500">No training records for this staff member.</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Training Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Training Completed</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor Review</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate Submitted</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPT Hours</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {staffStatus.trainings.map(training => (
+                                    <tr key={training.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{training.eventName}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{training.startDate} - {training.endDate}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <input
+                                          type="checkbox"
+                                          checked={training.trainingCompleted}
+                                          onChange={(e) => updateTrainingStatus(training.id, 'training_completed', e.target.checked)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        {training.trainingCompleted && training.trainingCompletedDate && <span className="ml-2 text-xs text-gray-500">({training.trainingCompletedDate})</span>}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <input
+                                          type="checkbox"
+                                          checked={training.supervisorOverviewCompleted}
+                                          onChange={(e) => updateTrainingStatus(training.id, 'supervisor_overview_completed', e.target.checked)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        {training.supervisorOverviewCompleted && training.supervisorOverviewDate && <span className="ml-2 text-xs text-gray-500">({training.supervisorOverviewDate})</span>}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <input
+                                          type="checkbox"
+                                          checked={training.certificateSubmitted}
+                                          onChange={(e) => updateTrainingStatus(training.id, 'certificate_submitted', e.target.checked)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        {training.certificateSubmitted && training.certificateSubmittedDate && <span className="ml-2 text-xs text-gray-500">({training.certificateSubmittedDate})</span>}
+                                        {training.certificateFileUrl && (
+                                          <a href={training.certificateFileUrl} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:text-blue-800">
+                                            <EyeIcon className="w-4 h-4 inline-block" /> View
+                                          </a>
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {training.isCpt ? training.cptHours : 'N/A'}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        {/* Add actions like view/edit specific training if needed */}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
-
-                            {/* Completion Checkboxes */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3 pt-3 border-t border-gray-200">
-                              <div className="flex items-center space-x-3">
-                                <input
-                                  type="checkbox"
-                                  id={`training-${training.id}`}
-                                  checked={training.trainingCompleted}
-                                  onChange={(e) => updateTrainingStatus(training.id, 'training_completed', e.target.checked)}
-                                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                />
-                                <label htmlFor={`training-${training.id}`} className="flex items-center">
-                                  <TrainingIcon className={`w-5 h-5 mr-2 ${training.trainingCompleted ? 'text-green-500' : 'text-gray-400'}`} />
-                                  <span className={`text-sm ${training.trainingCompleted ? 'text-green-700 font-medium' : 'text-gray-600'}`}>
-                                    Training Completed
-                                  </span>
-                                </label>
-                              </div>
-
-                              <div className="flex items-center space-x-3">
-                                <input
-                                  type="checkbox"
-                                  id={`overview-${training.id}`}
-                                  checked={training.supervisorOverviewCompleted}
-                                  onChange={(e) => updateTrainingStatus(training.id, 'supervisor_overview_completed', e.target.checked)}
-                                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                />
-                                <label htmlFor={`overview-${training.id}`} className="flex items-center">
-                                  <EyeIcon className={`w-5 h-5 mr-2 ${training.supervisorOverviewCompleted ? 'text-green-500' : 'text-gray-400'}`} />
-                                  <span className={`text-sm ${training.supervisorOverviewCompleted ? 'text-green-700 font-medium' : 'text-gray-600'}`}>
-                                    Supervisor Overview
-                                  </span>
-                                </label>
-                              </div>
-
-                              <div className="flex items-center space-x-3">
-                                <input
-                                  type="checkbox"
-                                  id={`cert-${training.id}`}
-                                  checked={training.certificateSubmitted}
-                                  onChange={(e) => updateTrainingStatus(training.id, 'certificate_submitted', e.target.checked)}
-                                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                />
-                                <label htmlFor={`cert-${training.id}`} className="flex items-center">
-                                  <CertificateIcon className={`w-5 h-5 mr-2 ${training.certificateSubmitted ? 'text-green-500' : 'text-gray-400'}`} />
-                                  <span className={`text-sm ${training.certificateSubmitted ? 'text-green-700 font-medium' : 'text-gray-600'}`}>
-                                    Certificate Submitted
-                                  </span>
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Status Legend</h3>
-        <div className="flex flex-wrap gap-6">
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon className="w-5 h-5 text-green-500" />
-            <span className="text-sm text-gray-600">
-              <strong className="text-green-600">Green</strong> - All items complete (Training, Overview, Certificate)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <XCircleIcon className="w-5 h-5 text-red-500" />
-            <span className="text-sm text-gray-600">
-              <strong className="text-red-600">Red</strong> - One or more items missing
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <WarningIcon className="w-5 h-5 text-gray-400" />
-            <span className="text-sm text-gray-600">
-              <strong className="text-gray-500">Gray</strong> - No training records
-            </span>
-          </div>
-        </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

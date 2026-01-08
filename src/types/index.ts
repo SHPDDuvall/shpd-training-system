@@ -44,6 +44,8 @@ export interface TrainingOpportunity {
   image: string;
   credits: number;
   mandatory: boolean;
+  is_cpt?: boolean;
+  cpt_hours?: number;
 }
 
 export type RequestStatus = 'submitted' | 'supervisor_review' | 'admin_approval' | 'approved' | 'denied' | 'scheduled' | 'completed';
@@ -67,6 +69,8 @@ export interface TrainingRequest {
   notes: string;
   denialReason?: string;
   submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
+  cptHours?: number;
+  isCpt?: boolean;
 }
 
 export interface Notification {
@@ -203,6 +207,8 @@ export interface InternalTrainingRequest {
   createdAt: string;
   updatedAt?: string;
   submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
+  cptHours?: number;
+  isCpt?: boolean;
 }
 
 // External Training Request types
@@ -234,6 +240,8 @@ export interface ExternalTrainingRequest {
   createdAt: string;
   updatedAt?: string;
   submittedWithin30Days?: boolean; // Whether request was submitted at least 30 days before training date
+  cptHours?: number;
+  isCpt?: boolean;
 }
 
 // Custom Training Request types
