@@ -24,6 +24,7 @@ import {
   AccountingIcon,
   ChevronDownIcon,
   EditIcon,
+  EyeIcon,
 } from '@/components/icons/Icons';
 
 type RequestType = 'all' | 'standard' | 'internal' | 'external';
@@ -75,6 +76,10 @@ const TrainingRequestFilter: React.FC = () => {
   const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  
+  // View Details modal states
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [viewingRequest, setViewingRequest] = useState<CombinedRequest | null>(null);
   
   // Fetch all data
   const fetchData = async () => {
@@ -760,9 +765,22 @@ const TrainingRequestFilter: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Edit button for admins */}
-                  {(user?.role === 'administrator' || user?.role === 'supervisor') && (
-                    <div className="flex-shrink-0">
+                  {/* Action buttons */}
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {/* View Details button */}
+                    <button
+                      onClick={() => {
+                        setViewingRequest(request);
+                        setShowDetailsModal(true);
+                      }}
+                      className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
+                      title="View full request details"
+                    >
+                      <EyeIcon size={16} />
+                      View Details
+                    </button>
+                    {/* Edit button for admins */}
+                    {(user?.role === 'administrator' || user?.role === 'supervisor') && (
                       <button
                         onClick={() => openEditModal(request)}
                         className="px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors flex items-center gap-1"
@@ -771,14 +789,239 @@ const TrainingRequestFilter: React.FC = () => {
                         <EditIcon size={16} />
                         Assign Approver
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      {/* View Details Modal */}
+      {showDetailsModal && viewingRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Request Details</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  {viewingRequest.type.charAt(0).toUpperCase() + viewingRequest.type.slice(1)} Training Request
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setViewingRequest(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <XIcon size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Basic Info */}
+              <div className="bg-slate-50 rounded-lg p-4">
+                <h4 className="font-semibold text-slate-800 mb-3">Basic Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-500">Training Title:</span>
+                    <p className="font-medium text-slate-800">{viewingRequest.title}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Status:</span>
+                    <p className="font-medium">{getStatusBadge(viewingRequest.status)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Submitted By:</span>
+                    <p className="font-medium text-slate-800">{viewingRequest.userName} (#{viewingRequest.userBadge})</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Submitted Date:</span>
+                    <p className="font-medium text-slate-800">{formatDate(viewingRequest.submittedDate)}</p>
+                  </div>
+                  {viewingRequest.trainingDate && (
+                    <div>
+                      <span className="text-slate-500">Training Date:</span>
+                      <p className="font-medium text-slate-800">{formatDate(viewingRequest.trainingDate)}</p>
+                    </div>
+                  )}
+                  {viewingRequest.location && (
+                    <div>
+                      <span className="text-slate-500">Location:</span>
+                      <p className="font-medium text-slate-800">{viewingRequest.location}</p>
+                    </div>
+                  )}
+                  {viewingRequest.supervisorName && (
+                    <div>
+                      <span className="text-slate-500">Assigned Approver:</span>
+                      <p className="font-medium text-slate-800">{viewingRequest.supervisorName}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* External Training Specific Details */}
+              {viewingRequest.type === 'external' && (() => {
+                const extData = viewingRequest.originalData as ExternalTrainingRequest;
+                return (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-800 mb-3">External Training Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Organization:</span>
+                        <p className="font-medium text-slate-800">{extData.organization}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Event Name:</span>
+                        <p className="font-medium text-slate-800">{extData.eventName}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Start Date:</span>
+                        <p className="font-medium text-slate-800">{formatDate(extData.startDate)}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">End Date:</span>
+                        <p className="font-medium text-slate-800">{formatDate(extData.endDate)}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Cost Estimate:</span>
+                        <p className="font-medium text-slate-800">${extData.costEstimate?.toFixed(2) || '0.00'}</p>
+                      </div>
+                    </div>
+                    {extData.justification && (
+                      <div className="mt-4">
+                        <span className="text-slate-500">Justification:</span>
+                        <p className="font-medium text-slate-800 mt-1 whitespace-pre-wrap">{extData.justification}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              
+              {/* Internal Training Specific Details */}
+              {viewingRequest.type === 'internal' && (() => {
+                const intData = viewingRequest.originalData as InternalTrainingRequest;
+                return (
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-800 mb-3">Internal Training Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Course Name:</span>
+                        <p className="font-medium text-slate-800">{intData.courseName}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Instructor:</span>
+                        <p className="font-medium text-slate-800">{intData.instructor}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Training Date:</span>
+                        <p className="font-medium text-slate-800">{formatDate(intData.trainingDate)}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Location:</span>
+                        <p className="font-medium text-slate-800">{intData.location}</p>
+                      </div>
+                    </div>
+                    {intData.attendees && intData.attendees.length > 0 && (
+                      <div className="mt-4">
+                        <span className="text-slate-500">Attendees:</span>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {intData.attendees.map((attendeeId, idx) => {
+                            const attendee = allUsers.find(u => u.id === attendeeId);
+                            return (
+                              <span key={idx} className="px-2 py-1 bg-white rounded text-sm text-slate-700">
+                                {attendee ? `${attendee.firstName} ${attendee.lastName}` : attendeeId}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              
+              {/* Notes */}
+              {(() => {
+                const originalData = viewingRequest.originalData as any;
+                return originalData.notes ? (
+                  <div className="bg-amber-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-800 mb-3">Notes</h4>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{originalData.notes}</p>
+                  </div>
+                ) : null;
+              })()}
+              
+              {/* Denial Reason */}
+              {(() => {
+                const originalData = viewingRequest.originalData as any;
+                return originalData.denialReason ? (
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-red-800 mb-3">Denial Reason</h4>
+                    <p className="text-sm text-red-700 whitespace-pre-wrap">{originalData.denialReason}</p>
+                  </div>
+                ) : null;
+              })()}
+              
+              {/* Documents/Attachments */}
+              {(() => {
+                const originalData = viewingRequest.originalData as any;
+                const hasDocuments = originalData.documents?.length > 0 || 
+                                    originalData.attachments?.length > 0 || 
+                                    originalData.certificate_file_url ||
+                                    originalData.certificateFileUrl;
+                
+                if (!hasDocuments) return null;
+                
+                return (
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-800 mb-3">Documents & Attachments</h4>
+                    <div className="space-y-2">
+                      {(originalData.documents || originalData.attachments || []).map((doc: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={doc.url || doc}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <DownloadIcon size={16} />
+                          {doc.name || `Document ${idx + 1}`}
+                        </a>
+                      ))}
+                      {(originalData.certificate_file_url || originalData.certificateFileUrl) && (
+                        <a
+                          href={originalData.certificate_file_url || originalData.certificateFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <DownloadIcon size={16} />
+                          Certificate
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            <div className="p-6 border-t border-slate-200 flex justify-end sticky bottom-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setViewingRequest(null);
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Edit Supervisor Modal */}
       {showEditModal && editingRequest && (
