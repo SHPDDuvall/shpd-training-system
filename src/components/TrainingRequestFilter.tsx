@@ -164,6 +164,9 @@ const TrainingRequestFilter: React.FC = () => {
           denialReason: r.denial_reason as string | undefined,
           createdAt: r.created_at as string,
           supervisorId: r.supervisor_id as string | undefined,
+          certificateFileUrl: r.certificate_file_url as string | undefined,
+          fileName: r.file_name as string | undefined,
+          sourceFile: r.sourcefile as string | undefined,
         })));
       }
       
@@ -968,40 +971,50 @@ const TrainingRequestFilter: React.FC = () => {
               {/* Documents/Attachments */}
               {(() => {
                 const originalData = viewingRequest.originalData as any;
-                const hasDocuments = originalData.documents?.length > 0 || 
-                                    originalData.attachments?.length > 0 || 
-                                    originalData.certificate_file_url ||
-                                    originalData.certificateFileUrl;
+                const documents: {name: string; url: string}[] = [];
                 
-                if (!hasDocuments) return null;
+                // Collect all document types
+                if (originalData.certificateFileUrl) {
+                  documents.push({ name: originalData.fileName || 'Certificate', url: originalData.certificateFileUrl });
+                }
+                if (originalData.certificate_file_url) {
+                  documents.push({ name: originalData.file_name || 'Certificate', url: originalData.certificate_file_url });
+                }
+                if (originalData.sourceFile) {
+                  documents.push({ name: 'Source Document', url: originalData.sourceFile });
+                }
+                if (originalData.sourcefile) {
+                  documents.push({ name: 'Source Document', url: originalData.sourcefile });
+                }
+                if (originalData.documents && Array.isArray(originalData.documents)) {
+                  originalData.documents.forEach((doc: any, idx: number) => {
+                    documents.push({ name: doc.name || `Document ${idx + 1}`, url: doc.url || doc });
+                  });
+                }
+                if (originalData.attachments && Array.isArray(originalData.attachments)) {
+                  originalData.attachments.forEach((doc: any, idx: number) => {
+                    documents.push({ name: doc.name || `Attachment ${idx + 1}`, url: doc.url || doc });
+                  });
+                }
+                
+                if (documents.length === 0) return null;
                 
                 return (
                   <div className="bg-purple-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-slate-800 mb-3">Documents & Attachments</h4>
+                    <h4 className="font-semibold text-slate-800 mb-3">Documents & Attachments ({documents.length})</h4>
                     <div className="space-y-2">
-                      {(originalData.documents || originalData.attachments || []).map((doc: any, idx: number) => (
+                      {documents.map((doc, idx) => (
                         <a
                           key={idx}
-                          href={doc.url || doc}
+                          href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
                         >
                           <DownloadIcon size={16} />
-                          {doc.name || `Document ${idx + 1}`}
+                          {doc.name}
                         </a>
                       ))}
-                      {(originalData.certificate_file_url || originalData.certificateFileUrl) && (
-                        <a
-                          href={originalData.certificate_file_url || originalData.certificateFileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          <DownloadIcon size={16} />
-                          Certificate
-                        </a>
-                      )}
                     </div>
                   </div>
                 );
