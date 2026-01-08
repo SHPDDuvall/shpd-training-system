@@ -179,6 +179,8 @@ const AdminPanel: React.FC = () => {
     mandatory: false,
     prerequisites: '',
     image: 'https://d64gsuwffb70l.cloudfront.net/6940ef621ce90c17a6f6ce0a_1765863895272_3ccab1a6.jpg',
+    isCpt: false,
+    cptHours: 0,
   });
 
   // Handle training image selection (force rebuild)
@@ -240,6 +242,8 @@ const AdminPanel: React.FC = () => {
     mandatory: false,
     prerequisites: '',
     image: '',
+    isCpt: false,
+    cptHours: 0,
   });
 
   useEffect(() => {
@@ -612,6 +616,8 @@ const AdminPanel: React.FC = () => {
         image: imageUrl,
         credits: newTraining.credits,
         mandatory: newTraining.mandatory,
+        is_cpt: newTraining.isCpt,
+        cpt_hours: newTraining.cptHours,
       });
 
       if (result) {
@@ -631,6 +637,8 @@ const AdminPanel: React.FC = () => {
           mandatory: false,
           prerequisites: '',
           image: 'https://d64gsuwffb70l.cloudfront.net/6940ef621ce90c17a6f6ce0a_1765863895272_3ccab1a6.jpg',
+          isCpt: false,
+          cptHours: 0,
         });
         setTrainingImageFile(null);
         setTrainingImagePreview(null);
@@ -664,6 +672,8 @@ const AdminPanel: React.FC = () => {
       mandatory: training.mandatory,
       prerequisites: Array.isArray(training.prerequisites) ? training.prerequisites.join(', ') : '',
       image: training.image,
+      isCpt: training.is_cpt || false,
+      cptHours: training.cpt_hours || 0,
     });
     setTrainingImageFile(null);
     setTrainingImagePreview(training.image);
@@ -709,6 +719,8 @@ const AdminPanel: React.FC = () => {
         ...editTrainingForm,
         prerequisites: prerequisitesArray,
         image: imageUrl,
+        is_cpt: editTrainingForm.isCpt,
+        cpt_hours: editTrainingForm.cptHours,
       });
 
       if (result) {
@@ -1367,6 +1379,16 @@ const AdminPanel: React.FC = () => {
                     <input type="checkbox" name="mandatory" id="mandatory-add" checked={newTraining.mandatory} onChange={handleAddTrainingInputChange} className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
                     <label htmlFor="mandatory-add" className="text-sm font-medium text-slate-700">This training is mandatory</label>
                   </div>
+                  <div className="sm:col-span-2 flex items-center gap-2">
+                    <input type="checkbox" name="isCpt" id="isCpt-add" checked={newTraining.isCpt} onChange={handleAddTrainingInputChange} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
+                    <label htmlFor="isCpt-add" className="text-sm font-medium text-slate-700">This training counts toward CPT (Continuing Professional Training)</label>
+                  </div>
+                  {newTraining.isCpt && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">CPT Hours</label>
+                      <input type="number" name="cptHours" value={newTraining.cptHours} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" min="0" step="0.5" placeholder="Enter CPT hours" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-end gap-4">
@@ -1463,6 +1485,16 @@ const AdminPanel: React.FC = () => {
                     <input type="checkbox" name="mandatory" id="mandatory-edit" checked={editTrainingForm.mandatory} onChange={handleEditTrainingInputChange} className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
                     <label htmlFor="mandatory-edit" className="text-sm font-medium text-slate-700">This training is mandatory</label>
                   </div>
+                  <div className="sm:col-span-2 flex items-center gap-2">
+                    <input type="checkbox" name="isCpt" id="isCpt-edit" checked={editTrainingForm.isCpt} onChange={handleEditTrainingInputChange} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
+                    <label htmlFor="isCpt-edit" className="text-sm font-medium text-slate-700">This training counts toward CPT (Continuing Professional Training)</label>
+                  </div>
+                  {editTrainingForm.isCpt && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">CPT Hours</label>
+                      <input type="number" name="cptHours" value={editTrainingForm.cptHours} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" min="0" step="0.5" placeholder="Enter CPT hours" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-end gap-4">

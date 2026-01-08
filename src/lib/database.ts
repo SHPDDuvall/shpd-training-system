@@ -234,6 +234,8 @@ export const trainingService = {
       image: training.image,
       credits: training.credits,
       mandatory: training.mandatory,
+      is_cpt: training.is_cpt || false,
+      cpt_hours: training.cpt_hours || 0,
     };
 
     const { data, error } = await supabase
@@ -263,6 +265,8 @@ export const trainingService = {
     if (updates.image) dbUpdates.image = updates.image;
     if (updates.credits !== undefined) dbUpdates.credits = updates.credits;
     if (updates.mandatory !== undefined) dbUpdates.mandatory = updates.mandatory;
+    if (updates.is_cpt !== undefined) dbUpdates.is_cpt = updates.is_cpt;
+    if (updates.cpt_hours !== undefined) dbUpdates.cpt_hours = updates.cpt_hours;
 
     const { data, error } = await supabase
       .from('training_courses')
@@ -1185,6 +1189,8 @@ function mapTrainingFromDb(data: Record<string, unknown>): TrainingOpportunity {
     image: data.image as string || '',
     credits: data.credits as number,
     mandatory: data.mandatory as boolean,
+    is_cpt: data.is_cpt as boolean || false,
+    cpt_hours: data.cpt_hours as number || 0,
   };
 }
 

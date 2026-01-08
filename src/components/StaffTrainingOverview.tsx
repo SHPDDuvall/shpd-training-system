@@ -61,7 +61,7 @@ interface StaffTrainingStatus {
   isCptComplete: boolean;
 }
 
-const CPT_REQUIRED_HOURS = 40; // Example: 40 CPT hours required
+const DEFAULT_CPT_REQUIRED_HOURS = 40; // Default: 40 CPT hours required
 
 const StaffTrainingOverview: React.FC = () => {
   const { user } = useAuth();
@@ -73,6 +73,17 @@ const StaffTrainingOverview: React.FC = () => {
   const [expandedStaff, setExpandedStaff] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'department'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // CPT Settings State
+  const [cptRequiredHours, setCptRequiredHours] = useState(DEFAULT_CPT_REQUIRED_HOURS);
+  const [showCptSettingsModal, setShowCptSettingsModal] = useState(false);
+  const [tempCptRequiredHours, setTempCptRequiredHours] = useState(DEFAULT_CPT_REQUIRED_HOURS);
+  
+  // Edit CPT Hours Modal State
+  const [showEditCptModal, setShowEditCptModal] = useState(false);
+  const [editingTrainingId, setEditingTrainingId] = useState<string | null>(null);
+  const [editCptHours, setEditCptHours] = useState<number>(0);
+  const [editIsCpt, setEditIsCpt] = useState<boolean>(false);
 
   // Fetch staff and training data
   useEffect(() => {
@@ -139,9 +150,9 @@ const StaffTrainingOverview: React.FC = () => {
           const cptCompletedHours = trainings
             .filter(t => t.isCpt && t.trainingCompleted && t.certificateSubmitted)
             .reduce((sum, t) => sum + t.cptHours, 0);
-          const cptRemainingHours = Math.max(0, CPT_REQUIRED_HOURS - cptCompletedHours);
-          const cptProgress = Math.min(100, (cptCompletedHours / CPT_REQUIRED_HOURS) * 100);
-          const isCptComplete = cptCompletedHours >= CPT_REQUIRED_HOURS;
+          const cptRemainingHours = Math.max(0, cptRequiredHours - cptCompletedHours);
+          const cptProgress = Math.min(100, (cptCompletedHours / cptRequiredHours) * 100);
+          const isCptComplete = cptCompletedHours >= cptRequiredHours;
 
           let completionStatus: 'complete' | 'incomplete' | 'no_training' = 'no_training';
           if (trainings.length > 0) {
@@ -250,6 +261,59 @@ const StaffTrainingOverview: React.FC = () => {
       }
       return newSet;
     });
+  };
+
+  // Load CPT settings from localStorage
+  useEffect(() => {
+    const savedCptHours = localStorage.getItem('cptRequiredHours');
+    if (savedCptHours) {
+      const hours = parseInt(savedCptHours, 10);
+      setCptRequiredHours(hours);
+      setTempCptRequiredHours(hours);
+    }
+  }, []);
+
+  // Save CPT settings
+  const saveCptSettings = () => {
+    setCptRequiredHours(tempCptRequiredHours);
+    localStorage.setItem('cptRequiredHours', tempCptRequiredHours.toString());
+    setShowCptSettingsModal(false);
+    fetchData(); // Refresh data to recalculate CPT progress
+  };
+
+  // Open edit CPT modal for a training
+  const openEditCptModal = (training: TrainingRecord) => {
+    setEditingTrainingId(training.id);
+    setEditIsCpt(training.isCpt);
+    setEditCptHours(training.cptHours);
+    setShowEditCptModal(true);
+  };
+
+  // Update CPT hours for a training
+  const updateCptHours = async () => {
+    if (!editingTrainingId) return;
+
+    try {
+      const { error } = await supabase
+        .from('external_training_requests')
+        .update({
+          is_cpt: editIsCpt,
+          cpt_hours: editIsCpt ? editCptHours : 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingTrainingId);
+
+      if (error) {
+        console.error('Error updating CPT hours:', error);
+        return;
+      }
+
+      setShowEditCptModal(false);
+      setEditingTrainingId(null);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating CPT hours:', error);
+    }
   };
 
   // Update training completion status
@@ -428,6 +492,12 @@ const StaffTrainingOverview: React.FC = () => {
               <RefreshIcon className="-ml-1 mr-2 h-5 w-5" />
               Refresh Data
             </button>
+            <button
+              onClick={() => { setTempCptRequiredHours(cptRequiredHours); setShowCptSettingsModal(true); }}
+              className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              CPT Settings ({cptRequiredHours} hrs)
+            </button>
           </div>
         </div>
       </div>
@@ -484,9 +554,12 @@ const StaffTrainingOverview: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${staffStatus.cptProgress}%` }}></div>
+                        <div className={`h-2.5 rounded-full ${staffStatus.isCptComplete ? 'bg-green-600' : 'bg-blue-600'}`} style={{ width: `${staffStatus.cptProgress}%` }}></div>
                       </div>
-                      <span className="text-xs text-gray-600">{staffStatus.cptCompletedHours} / {CPT_REQUIRED_HOURS} hours {staffStatus.isCptComplete && '(Complete)'}</span>
+                      <span className="text-xs text-gray-600">
+                        {staffStatus.cptCompletedHours} / {cptRequiredHours} hours 
+                        {staffStatus.isCptComplete && <CheckCircleIcon className="w-4 h-4 inline-block ml-1 text-green-500" />}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
@@ -556,10 +629,17 @@ const StaffTrainingOverview: React.FC = () => {
                                         )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {training.isCpt ? training.cptHours : 'N/A'}
+                                        <span className={training.isCpt ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+                                          {training.isCpt ? `${training.cptHours} hrs` : 'N/A'}
+                                        </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        {/* Add actions like view/edit specific training if needed */}
+                                        <button
+                                          onClick={() => openEditCptModal(training)}
+                                          className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 border border-blue-300 rounded hover:bg-blue-50"
+                                        >
+                                          Edit CPT
+                                        </button>
                                       </td>
                                     </tr>
                                   ))}
@@ -577,6 +657,93 @@ const StaffTrainingOverview: React.FC = () => {
           </table>
         )}
       </div>
+      {/* CPT Settings Modal */}
+      {showCptSettingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">CPT Settings</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required CPT Hours per Year
+              </label>
+              <input
+                type="number"
+                value={tempCptRequiredHours}
+                onChange={(e) => setTempCptRequiredHours(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="0"
+                step="1"
+              />
+              <p className="mt-2 text-sm text-gray-500">
+                This sets the total CPT hours required for staff to complete.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCptSettingsModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCptSettings}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit CPT Hours Modal */}
+      {showEditCptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Edit CPT Information</h3>
+            <div className="mb-4">
+              <label className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={editIsCpt}
+                  onChange={(e) => setEditIsCpt(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">This training counts toward CPT</span>
+              </label>
+              {editIsCpt && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CPT Hours
+                  </label>
+                  <input
+                    type="number"
+                    value={editCptHours}
+                    onChange={(e) => setEditCptHours(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    min="0"
+                    step="0.5"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setShowEditCptModal(false); setEditingTrainingId(null); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={updateCptHours}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
