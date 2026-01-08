@@ -80,6 +80,8 @@ const TrainingRequestFilter: React.FC = () => {
   // View Details modal states
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [viewingRequest, setViewingRequest] = useState<CombinedRequest | null>(null);
+  const [userDocuments, setUserDocuments] = useState<{id: string; title: string; fileName: string; fileUrl: string; documentType: string}[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   
   // Fetch all data
   const fetchData = async () => {
@@ -772,9 +774,34 @@ const TrainingRequestFilter: React.FC = () => {
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {/* View Details button */}
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setViewingRequest(request);
                         setShowDetailsModal(true);
+                        setIsLoadingDocuments(true);
+                        setUserDocuments([]);
+                        
+                        // Fetch documents from the documents table for this user
+                        try {
+                          const { data: docs, error } = await supabase
+                            .from('documents')
+                            .select('id, title, file_name, file_url, document_type')
+                            .eq('user_id', request.userId)
+                            .order('created_at', { ascending: false });
+                          
+                          if (docs && !error) {
+                            setUserDocuments(docs.map((d: any) => ({
+                              id: d.id,
+                              title: d.title || 'Untitled',
+                              fileName: d.file_name || 'Unknown file',
+                              fileUrl: d.file_url,
+                              documentType: d.document_type || 'Document'
+                            })));
+                          }
+                        } catch (err) {
+                          console.error('Error fetching documents:', err);
+                        } finally {
+                          setIsLoadingDocuments(false);
+                        }
                       }}
                       className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
                       title="View full request details"
@@ -971,51 +998,94 @@ const TrainingRequestFilter: React.FC = () => {
               {/* Documents/Attachments */}
               {(() => {
                 const originalData = viewingRequest.originalData as any;
-                const documents: {name: string; url: string}[] = [];
+                const requestDocuments: {name: string; url: string; type?: string}[] = [];
                 
-                // Collect all document types
+                // Collect documents from request data
                 if (originalData.certificateFileUrl) {
-                  documents.push({ name: originalData.fileName || 'Certificate', url: originalData.certificateFileUrl });
+                  requestDocuments.push({ name: originalData.fileName || 'Certificate', url: originalData.certificateFileUrl, type: 'Certificate' });
                 }
                 if (originalData.certificate_file_url) {
-                  documents.push({ name: originalData.file_name || 'Certificate', url: originalData.certificate_file_url });
+                  requestDocuments.push({ name: originalData.file_name || 'Certificate', url: originalData.certificate_file_url, type: 'Certificate' });
                 }
                 if (originalData.sourceFile) {
-                  documents.push({ name: 'Source Document', url: originalData.sourceFile });
+                  requestDocuments.push({ name: 'Source Document', url: originalData.sourceFile, type: 'Source' });
                 }
                 if (originalData.sourcefile) {
-                  documents.push({ name: 'Source Document', url: originalData.sourcefile });
+                  requestDocuments.push({ name: 'Source Document', url: originalData.sourcefile, type: 'Source' });
                 }
                 if (originalData.documents && Array.isArray(originalData.documents)) {
                   originalData.documents.forEach((doc: any, idx: number) => {
-                    documents.push({ name: doc.name || `Document ${idx + 1}`, url: doc.url || doc });
+                    requestDocuments.push({ name: doc.name || `Document ${idx + 1}`, url: doc.url || doc });
                   });
                 }
                 if (originalData.attachments && Array.isArray(originalData.attachments)) {
                   originalData.attachments.forEach((doc: any, idx: number) => {
-                    documents.push({ name: doc.name || `Attachment ${idx + 1}`, url: doc.url || doc });
+                    requestDocuments.push({ name: doc.name || `Attachment ${idx + 1}`, url: doc.url || doc });
                   });
                 }
                 
-                if (documents.length === 0) return null;
+                const totalDocs = requestDocuments.length + userDocuments.length;
                 
                 return (
                   <div className="bg-purple-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-slate-800 mb-3">Documents & Attachments ({documents.length})</h4>
-                    <div className="space-y-2">
-                      {documents.map((doc, idx) => (
-                        <a
-                          key={idx}
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          <DownloadIcon size={16} />
-                          {doc.name}
-                        </a>
-                      ))}
-                    </div>
+                    <h4 className="font-semibold text-slate-800 mb-3">
+                      Documents & Attachments {isLoadingDocuments ? '(Loading...)' : `(${totalDocs})`}
+                    </h4>
+                    
+                    {isLoadingDocuments ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <RefreshIcon size={16} className="animate-spin" />
+                        Loading documents...
+                      </div>
+                    ) : totalDocs === 0 ? (
+                      <p className="text-sm text-slate-500">No documents attached to this request.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Request-specific documents */}
+                        {requestDocuments.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase mb-2">Request Documents</p>
+                            <div className="space-y-2">
+                              {requestDocuments.map((doc, idx) => (
+                                <a
+                                  key={`req-${idx}`}
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  <DownloadIcon size={16} />
+                                  {doc.name}
+                                  {doc.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{doc.type}</span>}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* User's uploaded documents from documents table */}
+                        {userDocuments.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase mb-2">User Uploaded Documents</p>
+                            <div className="space-y-2">
+                              {userDocuments.map((doc) => (
+                                <a
+                                  key={doc.id}
+                                  href={doc.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  <DownloadIcon size={16} />
+                                  {doc.title || doc.fileName}
+                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{doc.documentType}</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
