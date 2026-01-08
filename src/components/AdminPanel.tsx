@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { trainingService, documentService } from '@/lib/database';
+import { trainingService, documentService, notificationService, userService } from '@/lib/database';
+import { sendGeneralEmail } from '@/lib/emailService';
 import { supabase } from '@/lib/supabase';
 import { TrainingOpportunity, User, Platoon, PLATOON_OPTIONS } from '@/types';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
@@ -623,6 +624,44 @@ const AdminPanel: React.FC = () => {
       if (result) {
         setTrainingSuccess(true);
         setTrainings(prev => [...prev, result]);
+        
+        // Send notifications to users who want to be notified of new trainings
+        try {
+          // Get users who have notify_new_trainings enabled
+          const { data: subscribedUsers, error: subError } = await supabase
+            .from('users')
+            .select('id, email, first_name, last_name, badge_number')
+            .eq('notify_new_trainings', true);
+          
+          if (!subError && subscribedUsers && subscribedUsers.length > 0) {
+            for (const subscriber of subscribedUsers) {
+              // Create in-app notification
+              await notificationService.create({
+                userId: subscriber.id,
+                title: 'New Training Available',
+                message: `A new training "${result.title}" has been added for ${result.date}. Category: ${result.category}. Location: ${result.location}.`,
+                type: 'info',
+                link: '/training',
+              });
+              
+              // Send email notification
+              if (subscriber.email) {
+                await sendGeneralEmail({
+                  recipientEmail: subscriber.email,
+                  recipientName: `${subscriber.first_name} ${subscriber.last_name}`,
+                  subject: `New Training Available: ${result.title}`,
+                  body: `Hello ${subscriber.first_name},\n\nA new training opportunity has been added:\n\nTitle: ${result.title}\nCategory: ${result.category}\nDate: ${result.date}\nTime: ${result.time}\nLocation: ${result.location}\nInstructor: ${result.instructor}\nDuration: ${result.duration}\n\n${result.description || ''}\n\nLog in to the SHPD Training System to view more details and enroll.\n\nBest regards,\nSHPD Training System`,
+                  senderName: 'SHPD Training System',
+                });
+              }
+            }
+            console.log(`Sent new training notifications to ${subscribedUsers.length} users`);
+          }
+        } catch (notifError) {
+          console.error('Error sending new training notifications:', notifError);
+          // Don't fail the training creation if notifications fail
+        }
+        
         setNewTraining({
           title: '',
           description: '',

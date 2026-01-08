@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Certificate, Document as DocType, Platoon, PLATOON_OPTIONS } from '@/types';
 import { certificateService, documentService } from '@/lib/database';
+import { supabase } from '@/lib/supabase';
 import CertificateGenerator from '@/components/CertificateGenerator';
 import {
   ProfileIcon,
@@ -63,6 +64,7 @@ const Profile: React.FC = () => {
   const [pushNotifications, setPushNotifications] = useState(true);
   const [trainingReminders, setTrainingReminders] = useState(true);
   const [approvalAlerts, setApprovalAlerts] = useState(true);
+  const [notifyNewTrainings, setNotifyNewTrainings] = useState(false);
 
   // Password change states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -74,8 +76,26 @@ const Profile: React.FC = () => {
     if (user) {
       loadCertificates();
       loadDocuments();
+      loadNotificationPreferences();
     }
   }, [user]);
+
+  const loadNotificationPreferences = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('notify_new_trainings')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) {
+        setNotifyNewTrainings(data.notify_new_trainings || false);
+      }
+    } catch (error) {
+      console.error('Error loading notification preferences:', error);
+    }
+  };
 
   const loadCertificates = async () => {
     if (!user) return;
@@ -122,9 +142,28 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleSaveNotifications = (e: React.FormEvent) => {
+  const handleSaveNotifications = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Notification preferences saved!');
+    if (!user) return;
+    
+    try {
+      // Update the notify_new_trainings field in the database
+      const { error } = await supabase
+        .from('users')
+        .update({ notify_new_trainings: notifyNewTrainings })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error saving notification preferences:', error);
+        showToast('Failed to save notification preferences');
+        return;
+      }
+      
+      showToast('Notification preferences saved!');
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+      showToast('Failed to save notification preferences');
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -832,6 +871,22 @@ const Profile: React.FC = () => {
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-300 peer-focus:ring-2 peer-focus:ring-amber-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div>
+                    <h4 className="font-medium text-slate-800">New Training Notifications</h4>
+                    <p className="text-sm text-slate-500">Get notified when new training opportunities are added</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifyNewTrainings}
+                      onChange={(e) => setNotifyNewTrainings(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
                   </label>
                 </div>
               </div>
