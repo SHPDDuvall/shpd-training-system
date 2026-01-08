@@ -1083,7 +1083,7 @@ const AdminPanel: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'attendance' && <AttendanceTracking />}
+          {activeTab === 'attendance' && <AttendanceTracking trainings={trainings} allUsers={allUsers} />}
           {activeTab === 'custom' && <CustomTrainingRequestTab />}
           {activeTab === 'budget' && <BudgetManagement />}
         </div>
