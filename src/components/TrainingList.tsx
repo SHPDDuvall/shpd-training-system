@@ -102,9 +102,7 @@ const TrainingList: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
+  const formatDate = (dateString: string) => {    return new Date(dateString + 'T00:00:00Z').toLocaleDateString(\'en-US\', {      weekday: 'short',
       month: 'short',
       day: 'numeric',
       year: 'numeric',

@@ -282,9 +282,7 @@ const AdminPanel: React.FC = () => {
     t.instructor.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
+  const formatDate = (dateString: string) => {    return new Date(dateString + \'T00:00:00Z\').toLocaleDateString(\'en-US\', {      month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
