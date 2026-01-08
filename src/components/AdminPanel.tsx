@@ -770,10 +770,12 @@ const AdminPanel: React.FC = () => {
           setTrainingSuccess(false);
         }, 2000);
       } else {
-        setTrainingError('Failed to update training.');
+        console.error('Training update returned null - check database logs');
+        setTrainingError('Failed to update training. Check browser console for details.');
       }
     } catch (error) {
-      setTrainingError('An unexpected error occurred.');
+      console.error('Error updating training:', error);
+      setTrainingError(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessingTraining(false);
     }

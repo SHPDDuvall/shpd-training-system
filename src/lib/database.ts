@@ -275,7 +275,11 @@ export const trainingService = {
       .select()
       .single();
 
-    if (error || !data) return null;
+    if (error) {
+      console.error('Error updating training:', error);
+      return null;
+    }
+    if (!data) return null;
     return mapTrainingFromDb(data);
   },
 
