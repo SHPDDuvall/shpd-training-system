@@ -102,7 +102,10 @@ const TrainingList: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {    return new Date(dateString + 'T00:00:00Z').toLocaleDateString(\'en-US\', {      weekday: 'short',
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Date(date.getTime() + date.getTimezoneOffset() * 60000).toLocaleDateString('en-US', {
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -286,73 +289,30 @@ const TrainingList: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-800">Request Training</h2>
-              <p className="text-slate-600 mt-1">Submit your request for approval</p>
+              <p className="text-slate-600 mt-1">Submit a request for: {selectedTraining.title}</p>
             </div>
-
             <div className="p-6">
-              <div className="flex gap-4 mb-6">
-                <img
-                  src={selectedTraining.image}
-                  alt={selectedTraining.title}
-                  className="w-20 h-20 rounded-lg object-cover"
-                />
-                <div>
-                  <h3 className="font-semibold text-slate-800">{selectedTraining.title}</h3>
-                  <p className="text-sm text-slate-600 mt-1">{formatDate(selectedTraining.date)}</p>
-                  <p className="text-sm text-slate-600">{selectedTraining.time}</p>
-                </div>
+              <textarea
+                value={requestNotes}
+                onChange={(e) => setRequestNotes(e.target.value)}
+                placeholder="Add optional notes for your supervisor..."
+                className="w-full h-24 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              />
+              <div className="mt-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestTraining}
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white font-medium rounded-lg transition-colors"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                </button>
               </div>
-
-              {selectedTraining.prerequisites.length > 0 && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <h4 className="font-medium text-amber-800 flex items-center gap-2">
-                    <AlertIcon size={18} />
-                    Prerequisites
-                  </h4>
-                  <ul className="mt-2 space-y-1">
-                    {selectedTraining.prerequisites.map((prereq, idx) => (
-                      <li key={idx} className="text-sm text-amber-700">• {prereq}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={requestNotes}
-                  onChange={(e) => setRequestNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Add any relevant notes for your supervisor..."
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setShowRequestModal(false);
-                  setSelectedTraining(null);
-                  setRequestNotes('');
-                }}
-                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRequestTraining}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Submit Request'
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -360,9 +320,9 @@ const TrainingList: React.FC = () => {
 
       {/* Success Toast */}
       {showSuccessToast && (
-        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-slide-up z-50">
+        <div className="fixed bottom-5 right-5 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
           <CheckIcon size={20} />
-          <span className="font-medium">Training request submitted successfully!</span>
+          <span>Training requested successfully!</span>
         </div>
       )}
     </div>
