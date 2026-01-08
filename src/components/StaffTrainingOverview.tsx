@@ -46,6 +46,7 @@ interface TrainingRecord {
   certificateFileUrl: string | null;
   isCpt: boolean;
   cptHours: number;
+  trainingType: 'internal' | 'external';
 }
 
 interface StaffTrainingStatus {
@@ -84,6 +85,7 @@ const StaffTrainingOverview: React.FC = () => {
   const [editingTrainingId, setEditingTrainingId] = useState<string | null>(null);
   const [editCptHours, setEditCptHours] = useState<number>(0);
   const [editIsCpt, setEditIsCpt] = useState<boolean>(false);
+  const [editingTrainingType, setEditingTrainingType] = useState<'internal' | 'external'>('external');
 
   // Fetch staff and training data
   useEffect(() => {
@@ -97,20 +99,30 @@ const StaffTrainingOverview: React.FC = () => {
       const users = await userService.getAll();
       
       // Fetch all external training requests with completion status
-      const { data: trainingData, error } = await supabase
+      const { data: externalData, error: externalError } = await supabase
         .from('external_training_requests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching training data:', error);
-        return;
+      if (externalError) {
+        console.error('Error fetching external training data:', externalError);
+      }
+
+      // Fetch all internal training requests with completion status
+      const { data: internalData, error: internalError } = await supabase
+        .from('internal_training_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (internalError) {
+        console.error('Error fetching internal training data:', internalError);
       }
 
       // Map training data to staff
       const staffTrainingMap = new Map<string, TrainingRecord[]>();
       
-      (trainingData || []).forEach((training: any) => {
+      // Process external trainings
+      (externalData || []).forEach((training: any) => {
         const record: TrainingRecord = {
           id: training.id,
           userId: training.user_id,
@@ -118,7 +130,7 @@ const StaffTrainingOverview: React.FC = () => {
           organization: training.organization,
           startDate: training.start_date,
           endDate: training.end_date,
-          status: training.status,
+          status: training.status || 'approved',
           trainingCompleted: training.training_completed || false,
           trainingCompletedDate: training.training_completed_date,
           supervisorOverviewCompleted: training.supervisor_overview_completed || false,
@@ -128,6 +140,34 @@ const StaffTrainingOverview: React.FC = () => {
           certificateFileUrl: training.certificate_file_url,
           isCpt: training.is_cpt || false,
           cptHours: training.cpt_hours || 0,
+          trainingType: 'external',
+        };
+
+        const existing = staffTrainingMap.get(training.user_id) || [];
+        existing.push(record);
+        staffTrainingMap.set(training.user_id, existing);
+      });
+
+      // Process internal trainings
+      (internalData || []).forEach((training: any) => {
+        const record: TrainingRecord = {
+          id: training.id,
+          userId: training.user_id,
+          eventName: training.course_name || training.event_name,
+          organization: training.organization || 'Internal',
+          startDate: training.training_date || training.start_date,
+          endDate: training.training_date || training.end_date,
+          status: training.status || 'approved',
+          trainingCompleted: training.training_completed || false,
+          trainingCompletedDate: training.training_completed_date,
+          supervisorOverviewCompleted: training.supervisor_overview_completed || false,
+          supervisorOverviewDate: training.supervisor_overview_date,
+          certificateSubmitted: training.certificate_submitted || false,
+          certificateSubmittedDate: training.certificate_submitted_date,
+          certificateFileUrl: training.certificate_file_url,
+          isCpt: training.is_cpt || false,
+          cptHours: training.cpt_hours || 0,
+          trainingType: 'internal',
         };
 
         const existing = staffTrainingMap.get(training.user_id) || [];
@@ -286,6 +326,7 @@ const StaffTrainingOverview: React.FC = () => {
     setEditingTrainingId(training.id);
     setEditIsCpt(training.isCpt);
     setEditCptHours(training.cptHours);
+    setEditingTrainingType(training.trainingType);
     setShowEditCptModal(true);
   };
 
@@ -294,8 +335,9 @@ const StaffTrainingOverview: React.FC = () => {
     if (!editingTrainingId) return;
 
     try {
+      const tableName = editingTrainingType === 'internal' ? 'internal_training_requests' : 'external_training_requests';
       const { error } = await supabase
-        .from('external_training_requests')
+        .from(tableName)
         .update({
           is_cpt: editIsCpt,
           cpt_hours: editIsCpt ? editCptHours : 0,
@@ -320,7 +362,8 @@ const StaffTrainingOverview: React.FC = () => {
   const updateTrainingStatus = async (
     trainingId: string,
     field: 'training_completed' | 'supervisor_overview_completed' | 'certificate_submitted',
-    value: boolean
+    value: boolean,
+    trainingType: 'internal' | 'external'
   ) => {
     try {
       const updates: Record<string, any> = {
@@ -330,16 +373,18 @@ const StaffTrainingOverview: React.FC = () => {
 
       // Add date field if marking as complete
       if (value) {
-        const dateField = field.replace('_completed', '_date').replace('_submitted', '_submitted_date');
         if (field === 'certificate_submitted') {
           updates.certificate_submitted_date = new Date().toISOString().split('T')[0];
-        } else {
-          updates[`${field.replace('_completed', '')}_date`] = new Date().toISOString().split('T')[0];
+        } else if (field === 'training_completed') {
+          updates.training_completed_date = new Date().toISOString().split('T')[0];
+        } else if (field === 'supervisor_overview_completed') {
+          updates.supervisor_overview_date = new Date().toISOString().split('T')[0];
         }
       }
 
+      const tableName = trainingType === 'internal' ? 'internal_training_requests' : 'external_training_requests';
       const { error } = await supabase
-        .from('external_training_requests')
+        .from(tableName)
         .update(updates)
         .eq('id', trainingId);
 
@@ -572,7 +617,7 @@ const StaffTrainingOverview: React.FC = () => {
                   </tr>
                   {expandedStaff.has(staffStatus.staff.id) && (
                     <tr>
-                      <td colSpan={6} className="p-0">
+                      <td colSpan={7} className="p-0">
                         <div className="bg-gray-50 p-4 border-t border-gray-200">
                           <h4 className="text-lg font-medium text-gray-900 mb-3">Training Details for {staffStatus.staff.firstName} {staffStatus.staff.lastName}</h4>
                           {staffStatus.trainings.length === 0 ? (
@@ -583,6 +628,7 @@ const StaffTrainingOverview: React.FC = () => {
                                 <thead className="bg-gray-100">
                                   <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Training Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Training Completed</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor Review</th>
@@ -595,13 +641,18 @@ const StaffTrainingOverview: React.FC = () => {
                                   {staffStatus.trainings.map(training => (
                                     <tr key={training.id}>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{training.eventName}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${training.trainingType === 'internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                                          {training.trainingType === 'internal' ? 'Internal' : 'External'}
+                                        </span>
+                                      </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{training.startDate} - {training.endDate}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <input
                                           type="checkbox"
                                           checked={training.trainingCompleted}
-                                          onChange={(e) => updateTrainingStatus(training.id, 'training_completed', e.target.checked)}
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          onChange={(e) => updateTrainingStatus(training.id, 'training_completed', e.target.checked, training.trainingType)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
                                         />
                                         {training.trainingCompleted && training.trainingCompletedDate && <span className="ml-2 text-xs text-gray-500">({training.trainingCompletedDate})</span>}
                                       </td>
@@ -609,8 +660,8 @@ const StaffTrainingOverview: React.FC = () => {
                                         <input
                                           type="checkbox"
                                           checked={training.supervisorOverviewCompleted}
-                                          onChange={(e) => updateTrainingStatus(training.id, 'supervisor_overview_completed', e.target.checked)}
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          onChange={(e) => updateTrainingStatus(training.id, 'supervisor_overview_completed', e.target.checked, training.trainingType)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
                                         />
                                         {training.supervisorOverviewCompleted && training.supervisorOverviewDate && <span className="ml-2 text-xs text-gray-500">({training.supervisorOverviewDate})</span>}
                                       </td>
@@ -618,8 +669,8 @@ const StaffTrainingOverview: React.FC = () => {
                                         <input
                                           type="checkbox"
                                           checked={training.certificateSubmitted}
-                                          onChange={(e) => updateTrainingStatus(training.id, 'certificate_submitted', e.target.checked)}
-                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                          onChange={(e) => updateTrainingStatus(training.id, 'certificate_submitted', e.target.checked, training.trainingType)}
+                                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
                                         />
                                         {training.certificateSubmitted && training.certificateSubmittedDate && <span className="ml-2 text-xs text-gray-500">({training.certificateSubmittedDate})</span>}
                                         {training.certificateFileUrl && (
