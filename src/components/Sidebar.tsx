@@ -47,15 +47,15 @@ const navItems: NavItem[] = [
 ];
 
 const supervisorItems: NavItem[] = [
-  { id: 'approvals', label: 'Pending Approvals', icon: ApprovalIcon, roles: ['supervisor', 'administrator'] },
+  { id: 'approvals', label: 'Pending Approvals', icon: ApprovalIcon, roles: ['supervisor', 'administrator', 'training_coordinator'] },
 ];
 
 const adminItems: NavItem[] = [
-  { id: 'admin', label: 'Admin Controls', icon: AdminIcon, roles: ['administrator'] },
-  { id: 'request-filter', label: 'Request Filter', icon: FilterIcon, roles: ['administrator', 'supervisor'] },
-  { id: 'reports', label: 'Reports Dashboard', icon: ReportIcon, roles: ['administrator', 'supervisor'] },
-  { id: 'email', label: 'Email Center', icon: EmailIcon, roles: ['administrator', 'supervisor'] },
-  { id: 'import', label: 'Import Data', icon: ImportIcon, roles: ['administrator'] },
+  { id: 'admin', label: 'Admin Controls', icon: AdminIcon, roles: ['administrator', 'training_coordinator'] },
+  { id: 'request-filter', label: 'Request Filter', icon: FilterIcon, roles: ['administrator', 'supervisor', 'training_coordinator'] },
+  { id: 'reports', label: 'Reports Dashboard', icon: ReportIcon, roles: ['administrator', 'supervisor', 'training_coordinator'] },
+  { id: 'email', label: 'Email Center', icon: EmailIcon, roles: ['administrator', 'supervisor', 'training_coordinator'] },
+  { id: 'import', label: 'Import Data', icon: ImportIcon, roles: ['administrator', 'training_coordinator'] },
 ];
 
 

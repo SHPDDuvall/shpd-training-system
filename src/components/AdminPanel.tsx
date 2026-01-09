@@ -289,38 +289,33 @@ const AdminPanel: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Date(date.getTime() + date.getTimezoneOffset() * 60000).toLocaleDateString('en-US', {
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   };
 
-  // Selection handlers
-  const handleSelectUser = (userId: string) => {
-    setSelectedUsers(prev => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(userId)) {
-        newSelection.delete(userId);
-      } else {
-        newSelection.add(userId);
-      }
-      return newSelection;
-    });
-  };
-
-  const handleSelectAllUsers = () => {
-    if (selectedUsers.size === filteredUsers.length) {
-      setSelectedUsers(new Set());
-    } else {
-      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
-    }
-  };
-
-  // Add user handlers
   const handleAddUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setNewUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditUserForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddTrainingInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setNewTraining(prev => ({ ...prev, [name]: val }));
+  };
+
+  const handleEditTrainingInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setEditTrainingForm(prev => ({ ...prev, [name]: val }));
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -345,23 +340,22 @@ const AdminPanel: React.FC = () => {
           hireDate: '',
           supervisorId: '',
           password: '',
-          platoon: '' as Platoon,
+          platoon: '',
         });
         setTimeout(() => {
           setShowAddUserModal(false);
           setCreateUserSuccess(false);
-        }, 2000);
+        }, 1500);
       } else {
-        setCreateUserError('Failed to create user. Badge number or email may already exist.');
+        setCreateUserError('Failed to create user. Badge number may already exist.');
       }
     } catch (error) {
-      setCreateUserError('An unexpected error occurred.');
+      setCreateUserError('An error occurred while creating the user.');
     } finally {
       setIsCreatingUser(false);
     }
   };
 
-  // Edit user handlers
   const openEditUserModal = (user: User) => {
     setEditingUser(user);
     setEditUserForm({
@@ -374,17 +368,14 @@ const AdminPanel: React.FC = () => {
       rank: user.rank,
       phone: user.phone,
       supervisorId: user.supervisorId || '',
-      hireDate: user.hireDate || '',
-      platoon: user.platoon || '' as Platoon,
+      hireDate: user.hireDate,
+      platoon: user.platoon || '',
     });
+    setEditAvatarPreview(user.avatar);
     setEditAvatarFile(null);
-    setEditAvatarPreview(user.avatar || null);
     setShowEditUserModal(true);
-  };
-
-  const handleEditUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditUserForm(prev => ({ ...prev, [name]: value }));
+    setUpdateUserError('');
+    setUpdateUserSuccess(false);
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
@@ -397,78 +388,62 @@ const AdminPanel: React.FC = () => {
 
     try {
       let avatarUrl = editingUser.avatar;
-
+      
+      // Upload new avatar if selected
       if (editAvatarFile) {
-        setIsUploadingEditAvatar(true);
-        const fileExt = editAvatarFile.name.split('.').pop();
-        const fileName = `${editingUser.id}_${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('user-profiles')
-          .upload(filePath, editAvatarFile, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage.from('user-profiles').getPublicUrl(filePath);
-        avatarUrl = data.publicUrl;
-        setIsUploadingEditAvatar(false);
+        const filePath = `avatars/${editingUser.id}/${Date.now()}_${editAvatarFile.name}`;
+        const uploadedUrl = await documentService.uploadFile(editAvatarFile, filePath);
+        if (uploadedUrl) {
+          avatarUrl = uploadedUrl;
+        }
       }
 
-      const result = await updateUser(editingUser.id, { ...editUserForm, avatar: avatarUrl });
+      const result = await updateUser(editingUser.id, {
+        ...editUserForm,
+        avatar: avatarUrl
+      });
+      
       if (result) {
         setUpdateUserSuccess(true);
         setTimeout(() => {
           setShowEditUserModal(false);
           setUpdateUserSuccess(false);
-        }, 2000);
+        }, 1500);
       } else {
         setUpdateUserError('Failed to update user.');
       }
     } catch (error) {
-      setUpdateUserError('An unexpected error occurred.');
+      setUpdateUserError('An error occurred while updating the user.');
     } finally {
       setIsUpdatingUser(false);
     }
   };
-  
-  const handleRemoveAvatar = async () => {
-    if (!editingUser) return;
 
-    setIsUpdatingUser(true);
-    try {
-      const result = await updateUser(editingUser.id, { avatar: '' });
-      if (result) {
-        setEditAvatarPreview(null);
-        if (editingUser) {
-          setEditingUser({ ...editingUser, avatar: '' });
-        }
-      }
-    } finally {
-      setIsUpdatingUser(false);
-      setShowRemoveAvatarConfirm(false);
-    }
-  };
-
-  // Reset password handlers
   const openResetPasswordModal = (user: User) => {
     setResetPasswordUser(user);
-    setShowResetPasswordModal(true);
     setNewPassword('');
     setConfirmPassword('');
+    setShowResetPasswordModal(true);
     setResetPasswordError('');
     setResetPasswordSuccess(false);
   };
 
-  const handleResetPassword = async () => {
-    if (!resetPasswordUser || newPassword !== confirmPassword || !newPassword) {
-      setResetPasswordError('Passwords do not match or are empty.');
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordUser) return;
+
+    if (newPassword !== confirmPassword) {
+      setResetPasswordError('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setResetPasswordError('Password must be at least 4 characters');
       return;
     }
 
     setIsResettingPassword(true);
     setResetPasswordError('');
-    setResetPasswordSuccess(false);
 
     try {
       const success = await resetUserPassword(resetPasswordUser.id, newPassword);
@@ -476,18 +451,18 @@ const AdminPanel: React.FC = () => {
         setResetPasswordSuccess(true);
         setTimeout(() => {
           setShowResetPasswordModal(false);
-        }, 2000);
+          setResetPasswordSuccess(false);
+        }, 1500);
       } else {
         setResetPasswordError('Failed to reset password.');
       }
     } catch (error) {
-      setResetPasswordError('An unexpected error occurred.');
+      setResetPasswordError('An error occurred.');
     } finally {
       setIsResettingPassword(false);
     }
   };
 
-  // Delete user handlers
   const openDeleteConfirm = (user: User) => {
     setDeletingUser(user);
     setShowDeleteConfirm(true);
@@ -498,79 +473,14 @@ const AdminPanel: React.FC = () => {
 
     setIsDeletingUser(true);
     try {
-      await deleteUser(deletingUser.id);
-      setShowDeleteConfirm(false);
-      setDeletingUser(null);
+      const success = await deleteUser(deletingUser.id);
+      if (success) {
+        setShowDeleteConfirm(false);
+        setDeletingUser(null);
+      }
     } finally {
       setIsDeletingUser(false);
     }
-  };
-
-  // Bulk action handlers
-  const handleBulkDelete = async () => {
-    setIsBulkProcessing(true);
-    setBulkOperationError('');
-    setBulkOperationSuccess('');
-    try {
-      for (const userId of selectedUsers) {
-        await deleteUser(userId);
-      }
-      setBulkOperationSuccess(`${selectedUsers.size} users deleted successfully.`);
-      setSelectedUsers(new Set());
-    } catch (error) {
-      setBulkOperationError('Error deleting users.');
-    } finally {
-      setIsBulkProcessing(false);
-      setShowBulkDeleteModal(false);
-    }
-  };
-
-  const handleBulkRoleChange = async () => {
-    setIsBulkProcessing(true);
-    setBulkOperationError('');
-    setBulkOperationSuccess('');
-    try {
-      for (const userId of selectedUsers) {
-        await updateUser(userId, { role: bulkRole });
-      }
-      setBulkOperationSuccess(`Role updated for ${selectedUsers.size} users.`);
-      setSelectedUsers(new Set());
-    } catch (error) {
-      setBulkOperationError('Error updating roles.');
-    } finally {
-      setIsBulkProcessing(false);
-      setShowBulkRoleModal(false);
-    }
-  };
-
-  const handleBulkDepartmentChange = async () => {
-    setIsBulkProcessing(true);
-    setBulkOperationError('');
-    setBulkOperationSuccess('');
-    try {
-      for (const userId of selectedUsers) {
-        await updateUser(userId, { department: bulkDepartment });
-      }
-      setBulkOperationSuccess(`Department updated for ${selectedUsers.size} users.`);
-      setSelectedUsers(new Set());
-    } catch (error) {
-      setBulkOperationError('Error updating departments.');
-    } finally {
-      setIsBulkProcessing(false);
-      setShowBulkDepartmentModal(false);
-    }
-  };
-
-  // Training handlers
-  const handleAddTrainingInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    const isCheckbox = type === 'checkbox';
-    const checked = (e.target as HTMLInputElement).checked;
-
-    setNewTraining(prev => ({ 
-      ...prev, 
-      [name]: isCheckbox ? checked : value 
-    }));
   };
 
   const handleAddTraining = async (e: React.FormEvent) => {
@@ -580,116 +490,51 @@ const AdminPanel: React.FC = () => {
     setTrainingSuccess(false);
 
     try {
-      if (!newTraining.title || !newTraining.category || !newTraining.instructor || !newTraining.date || !newTraining.duration || !newTraining.location) {
-        setTrainingError('Please fill in all required fields');
-        setIsProcessingTraining(false);
-        return;
-      }
-
       let imageUrl = newTraining.image;
-
+      
       // Upload image if selected
       if (trainingImageFile) {
         const uploadedUrl = await uploadTrainingImage(trainingImageFile);
         if (uploadedUrl) {
           imageUrl = uploadedUrl;
-        } else {
-          throw new Error('Failed to upload image');
         }
       }
 
-      const prerequisitesArray = newTraining.prerequisites
-        ? newTraining.prerequisites.split(',').map(p => p.trim()).filter(p => p)
-        : [];
-
       const result = await trainingService.create({
-        title: newTraining.title,
-        description: newTraining.description,
-        category: newTraining.category,
-        instructor: newTraining.instructor,
-        date: newTraining.date,
-        time: newTraining.time,
-        duration: newTraining.duration,
-        location: newTraining.location,
-        capacity: newTraining.capacity,
-        enrolled: 0,
-        prerequisites: prerequisitesArray,
+        ...newTraining,
         image: imageUrl,
-        credits: newTraining.credits,
-        mandatory: newTraining.mandatory,
-        is_cpt: newTraining.isCpt,
-        cpt_hours: newTraining.cptHours,
+        prerequisites: newTraining.prerequisites.split(',').map(p => p.trim()).filter(p => p !== ''),
       });
 
       if (result) {
         setTrainingSuccess(true);
-        setTrainings(prev => [...prev, result]);
-        
-        // Send notifications to users who want to be notified of new trainings
-        try {
-          // Get users who have notify_new_trainings enabled
-          const { data: subscribedUsers, error: subError } = await supabase
-            .from('users')
-            .select('id, email, first_name, last_name, badge_number')
-            .eq('notify_new_trainings', true);
-          
-          if (!subError && subscribedUsers && subscribedUsers.length > 0) {
-            for (const subscriber of subscribedUsers) {
-              // Create in-app notification
-              await notificationService.create({
-                userId: subscriber.id,
-                title: 'New Training Available',
-                message: `A new training "${result.title}" has been added for ${result.date}. Category: ${result.category}. Location: ${result.location}.`,
-                type: 'info',
-                link: '/training',
-              });
-              
-              // Send email notification
-              if (subscriber.email) {
-                await sendGeneralEmail({
-                  recipientEmail: subscriber.email,
-                  recipientName: `${subscriber.first_name} ${subscriber.last_name}`,
-                  subject: `New Training Available: ${result.title}`,
-                  body: `Hello ${subscriber.first_name},\n\nA new training opportunity has been added:\n\nTitle: ${result.title}\nCategory: ${result.category}\nDate: ${result.date}\nTime: ${result.time}\nLocation: ${result.location}\nInstructor: ${result.instructor}\nDuration: ${result.duration}\n\n${result.description || ''}\n\nLog in to the SHPD Training System to view more details and enroll.\n\nBest regards,\nSHPD Training System`,
-                  senderName: 'SHPD Training System',
-                });
-              }
-            }
-            console.log(`Sent new training notifications to ${subscribedUsers.length} users`);
-          }
-        } catch (notifError) {
-          console.error('Error sending new training notifications:', notifError);
-          // Don't fail the training creation if notifications fail
-        }
-        
-        setNewTraining({
-          title: '',
-          description: '',
-          category: 'Tactical',
-          instructor: '',
-          date: '',
-          time: '08:00 AM',
-          duration: '',
-          location: '',
-          capacity: 20,
-          credits: 4,
-          mandatory: false,
-          prerequisites: '',
-          image: 'https://d64gsuwffb70l.cloudfront.net/6940ef621ce90c17a6f6ce0a_1765863895272_3ccab1a6.jpg',
-          isCpt: false,
-          cptHours: 0,
-        });
-        setTrainingImageFile(null);
-        setTrainingImagePreview(null);
+        loadTrainings();
         setTimeout(() => {
           setShowAddTrainingModal(false);
           setTrainingSuccess(false);
-        }, 2000);
-      } else {
-        setTrainingError('Failed to create training.');
+          setNewTraining({
+            title: '',
+            description: '',
+            category: 'Tactical',
+            instructor: '',
+            date: '',
+            time: '08:00 AM',
+            duration: '',
+            location: '',
+            capacity: 20,
+            credits: 4,
+            mandatory: false,
+            prerequisites: '',
+            image: 'https://d64gsuwffb70l.cloudfront.net/6940ef621ce90c17a6f6ce0a_1765863895272_3ccab1a6.jpg',
+            isCpt: false,
+            cptHours: 0,
+          });
+          setTrainingImageFile(null);
+          setTrainingImagePreview(null);
+        }, 1500);
       }
     } catch (error) {
-      setTrainingError('An unexpected error occurred.');
+      setTrainingError('Failed to create training.');
     } finally {
       setIsProcessingTraining(false);
     }
@@ -709,25 +554,16 @@ const AdminPanel: React.FC = () => {
       capacity: training.capacity,
       credits: training.credits,
       mandatory: training.mandatory,
-      prerequisites: Array.isArray(training.prerequisites) ? training.prerequisites.join(', ') : '',
+      prerequisites: training.prerequisites.join(', '),
       image: training.image,
       isCpt: training.is_cpt || false,
       cptHours: training.cpt_hours || 0,
     });
-    setTrainingImageFile(null);
     setTrainingImagePreview(training.image);
+    setTrainingImageFile(null);
     setShowEditTrainingModal(true);
-  };
-
-  const handleEditTrainingInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    const isCheckbox = type === 'checkbox';
-    const checked = (e.target as HTMLInputElement).checked;
-
-    setEditTrainingForm(prev => ({ 
-      ...prev, 
-      [name]: isCheckbox ? checked : value 
-    }));
+    setTrainingError('');
+    setTrainingSuccess(false);
   };
 
   const handleUpdateTraining = async (e: React.FormEvent) => {
@@ -740,42 +576,31 @@ const AdminPanel: React.FC = () => {
 
     try {
       let imageUrl = editTrainingForm.image;
-
+      
+      // Upload new image if selected
       if (trainingImageFile) {
         const uploadedUrl = await uploadTrainingImage(trainingImageFile);
         if (uploadedUrl) {
           imageUrl = uploadedUrl;
-        } else {
-          throw new Error('Failed to upload image');
         }
       }
 
-      const prerequisitesArray = editTrainingForm.prerequisites
-        ? editTrainingForm.prerequisites.split(',').map(p => p.trim()).filter(p => p)
-        : [];
-
       const result = await trainingService.update(editingTraining.id, {
         ...editTrainingForm,
-        prerequisites: prerequisitesArray,
         image: imageUrl,
-        is_cpt: editTrainingForm.isCpt,
-        cpt_hours: editTrainingForm.cptHours,
+        prerequisites: editTrainingForm.prerequisites.split(',').map(p => p.trim()).filter(p => p !== ''),
       });
 
       if (result) {
         setTrainingSuccess(true);
-        setTrainings(prev => prev.map(t => t.id === editingTraining.id ? result : t));
+        loadTrainings();
         setTimeout(() => {
           setShowEditTrainingModal(false);
           setTrainingSuccess(false);
-        }, 2000);
-      } else {
-        console.error('Training update returned null - check database logs');
-        setTrainingError('Failed to update training. Check browser console for details.');
+        }, 1500);
       }
     } catch (error) {
-      console.error('Error updating training:', error);
-      setTrainingError(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTrainingError('Failed to update training.');
     } finally {
       setIsProcessingTraining(false);
     }
@@ -791,249 +616,396 @@ const AdminPanel: React.FC = () => {
 
     setIsProcessingTraining(true);
     try {
-      await trainingService.delete(deletingTraining.id);
-      setTrainings(prev => prev.filter(t => t.id !== deletingTraining.id));
-      setShowDeleteTrainingModal(false);
-      setDeletingTraining(null);
+      const success = await trainingService.delete(deletingTraining.id);
+      if (success) {
+        loadTrainings();
+        setShowDeleteTrainingModal(false);
+        setDeletingTraining(null);
+      }
     } finally {
       setIsProcessingTraining(false);
     }
   };
 
-  // Calendar handlers
+  // Bulk Action Handlers
+  const toggleUserSelection = (userId: string) => {
+    const newSelection = new Set(selectedUsers);
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId);
+    } else {
+      newSelection.add(userId);
+    }
+    setSelectedUsers(newSelection);
+  };
+
+  const toggleAllUsers = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkProcessing(true);
+    setBulkOperationError('');
+    try {
+      for (const userId of selectedUsers) {
+        await userService.delete(userId);
+      }
+      setBulkOperationSuccess(`Successfully deleted ${selectedUsers.size} users.`);
+      setSelectedUsers(new Set());
+      refreshUsers();
+      setTimeout(() => {
+        setShowBulkDeleteModal(false);
+        setBulkOperationSuccess('');
+      }, 2000);
+    } catch (error) {
+      setBulkOperationError('Failed to delete some users.');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkRoleUpdate = async () => {
+    setIsBulkProcessing(true);
+    setBulkOperationError('');
+    try {
+      for (const userId of selectedUsers) {
+        await userService.update(userId, { role: bulkRole });
+      }
+      setBulkOperationSuccess(`Successfully updated role for ${selectedUsers.size} users.`);
+      setSelectedUsers(new Set());
+      refreshUsers();
+      setTimeout(() => {
+        setShowBulkRoleModal(false);
+        setBulkOperationSuccess('');
+      }, 2000);
+    } catch (error) {
+      setBulkOperationError('Failed to update roles.');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDepartmentUpdate = async () => {
+    setIsBulkProcessing(true);
+    setBulkOperationError('');
+    try {
+      for (const userId of selectedUsers) {
+        await userService.update(userId, { department: bulkDepartment });
+      }
+      setBulkOperationSuccess(`Successfully updated department for ${selectedUsers.size} users.`);
+      setSelectedUsers(new Set());
+      refreshUsers();
+      setTimeout(() => {
+        setShowBulkDepartmentModal(false);
+        setBulkOperationSuccess('');
+      }, 2000);
+    } catch (error) {
+      setBulkOperationError('Failed to update departments.');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  // Calendar Handlers
   const handleDateClick = (date: string) => {
     setSelectedDate(date);
     setShowDayModal(true);
   };
 
-  const handleMonthChange = (direction: 'next' | 'prev') => {
-    if (direction === 'next') {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(y => y + 1);
-      } else {
-        setCurrentMonth(m => m + 1);
-      }
-    } else {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(y => y - 1);
-      } else {
-        setCurrentMonth(m => m - 1);
-      }
-    }
+  const handleMonthChange = (month: number, year: number) => {
+    setCurrentMonth(month);
+    setCurrentYear(year);
   };
 
-  const handleDrop = async (item: TrainingOpportunity, newDate: string) => {
+  const handleDrop = async (trainingId: string, newDate: string) => {
     try {
-      const updatedTraining = await trainingService.update(item.id, { date: newDate });
-      if (updatedTraining) {
-        setTrainings(prev => prev.map(t => t.id === item.id ? updatedTraining : t));
-      }
+      await trainingService.update(trainingId, { date: newDate });
+      loadTrainings();
     } catch (error) {
-      console.error("Failed to update training date on drop", error);
+      console.error('Error updating training date:', error);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  const supervisors = allUsers.filter(u => u.role === 'supervisor' || u.role === 'administrator');
+  const supervisors = allUsers.filter(u => u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator');
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">Admin Controls</h1>
-          <p className="text-slate-600 mt-1">Manage users, training, and system settings</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Admin Controls</h1>
+          <p className="text-slate-600 mt-1">Manage users, training opportunities, and system settings</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {activeTab === 'users' && (
+            <button
+              onClick={() => setShowAddUserModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              <PlusIcon size={20} />
+              Add User
+            </button>
+          )}
+          {activeTab === 'training' && (
+            <button
+              onClick={() => setShowAddTrainingModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              <PlusIcon size={20} />
+              Add Training
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Users</div>
+          <div className="text-2xl font-bold text-slate-800">{stats.totalUsers}</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Trainings</div>
+          <div className="text-2xl font-bold text-slate-800">{stats.totalTraining}</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Pending</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.pendingRequests}</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Approved</div>
+          <div className="text-2xl font-bold text-green-600">{stats.approvedRequests}</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Completed</div>
+          <div className="text-2xl font-bold text-amber-600">{stats.completedTraining}</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Denied</div>
+          <div className="text-2xl font-bold text-red-600">{stats.deniedRequests}</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex border-b border-slate-200 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'overview' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'users' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            User Management
+          </button>
+          <button
+            onClick={() => setActiveTab('training')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'training' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Training Catalog
+          </button>
+          <button
+            onClick={() => setActiveTab('attendance')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'attendance' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Attendance
+          </button>
+          <button
+            onClick={() => setActiveTab('custom')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'custom' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Custom Requests
+          </button>
+          <button
+            onClick={() => setActiveTab('budget')}
+            className={`px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === 'budget' ? 'text-amber-600 border-b-2 border-amber-500 bg-amber-50/30' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Budget & Accounting
+          </button>
         </div>
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-          <StatCard icon={<UsersIcon />} title="Total Users" value={stats.totalUsers} />
-          <StatCard icon={<TrainingIcon />} title="Total Courses" value={stats.totalTraining} />
-          <StatCard icon={<ClockIcon />} title="Pending" value={stats.pendingRequests} color="blue" />
-          <StatCard icon={<CheckIcon />} title="Approved" value={stats.approvedRequests} color="green" />
-          <StatCard icon={<ClipboardCheckIcon />} title="Completed" value={stats.completedTraining} color="slate" />
-          <StatCard icon={<XIcon />} title="Denied" value={stats.deniedRequests} color="red" />
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-6 border-b border-slate-200">
-          <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
-            <TabButton name="overview" activeTab={activeTab} setActiveTab={setActiveTab} icon={<AdminIcon />}>Overview</TabButton>
-            <TabButton name="users" activeTab={activeTab} setActiveTab={setActiveTab} icon={<UsersIcon />}>User Management</TabButton>
-            <TabButton name="training" activeTab={activeTab} setActiveTab={setActiveTab} icon={<TrainingIcon />}>Training Management</TabButton>
-            <TabButton name="attendance" activeTab={activeTab} setActiveTab={setActiveTab} icon={<ClipboardCheckIcon />}>Attendance Tracking</TabButton>
-            <TabButton name="custom" activeTab={activeTab} setActiveTab={setActiveTab} icon={<CustomRequestIcon />}>Custom Requests</TabButton>
-            <TabButton name="budget" activeTab={activeTab} setActiveTab={setActiveTab} icon={<AccountingIcon />}>Budget & Accounting</TabButton>
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
+        <div className="p-6">
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
-                <h2 className="text-xl font-bold text-slate-800 mb-4">Recent Activity</h2>
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Recent Activity</h3>
                 <div className="space-y-4">
                   {allRequests.slice(0, 5).map(request => (
-                    <div key={request.id} className="flex items-center space-x-4 p-3 bg-slate-50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        <img className="h-10 w-10 rounded-full object-cover" src={request.user?.avatar || 'https://via.placeholder.com/150'} alt="" />
+                    <div key={request.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                      <div className={`p-2 rounded-lg ${
+                        request.status === 'approved' ? 'bg-green-100 text-green-600' :
+                        request.status === 'denied' ? 'bg-red-100 text-red-600' :
+                        'bg-blue-100 text-blue-600'
+                      }`}>
+                        <TrainingIcon size={18} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">
-                          {request.user?.firstName} {request.user?.lastName}
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">
+                          <span className="font-bold">{request.userName}</span> requested <span className="font-bold">{request.trainingTitle}</span>
                         </p>
-                        <p className="text-sm text-slate-500 truncate">
-                          Requested "{request.training?.title || request.courseName}"
+                        <p className="text-xs text-slate-500 mt-1">
+                          Status: <span className="capitalize">{request.status.replace('_', ' ')}</span> • {formatDate(request.submittedDate)}
                         </p>
-                      </div>
-                      <div className="text-sm text-slate-500 text-right">
-                        <p>{new Date(request.createdAt).toLocaleDateString()}</p>
-                        <StatusBadge status={request.status} />
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
+              
               <div>
-                <h2 className="text-xl font-bold text-slate-800 mb-4">Upcoming Training</h2>
-                <div className="space-y-4">
-                  {trainings.filter(t => new Date(t.date) >= new Date()).slice(0, 5).map(training => (
-                    <div key={training.id} className="flex items-center space-x-4 p-3 bg-slate-50 rounded-lg">
-                      <div className="flex-shrink-0 h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <CalendarIcon className="text-amber-500" />
+                <h3 className="text-lg font-bold text-slate-800 mb-4">System Status</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                        <UsersIcon size={20} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{training.title}</p>
-                        <p className="text-sm text-slate-500 truncate">{training.location}</p>
-                      </div>
-                      <div className="text-sm text-slate-500 text-right font-medium">
-                        {formatDate(training.date)}
-                      </div>
+                      <span className="font-bold text-slate-800">User Directory</span>
                     </div>
-                  ))}
+                    <p className="text-sm text-slate-600">All user accounts are active and synchronized.</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                        <CalendarIcon size={20} />
+                      </div>
+                      <span className="font-bold text-slate-800">Training Schedule</span>
+                    </div>
+                    <p className="text-sm text-slate-600">Calendar is up to date with {trainings.length} upcoming events.</p>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {activeTab === 'users' && (
-            <div>
-              {/* User Management Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">User Management</h2>
-                  <p className="text-slate-600 mt-1">Total {allUsers.length} users</p>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search users by name, badge, or department..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
                 </div>
+                
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 sm:flex-none">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search users..."
-                      className="w-full sm:w-64 pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    />
-                  </div>
-                  <button
-                    onClick={() => setShowAddUserModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
-                  >
-                    <PlusIcon size={20} />
-                    Add User
-                  </button>
+                  {selectedUsers.size > 0 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowBulkActionsMenu(!showBulkActionsMenu)}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                      >
+                        Bulk Actions ({selectedUsers.size})
+                        <ChevronDownIcon size={16} />
+                      </button>
+                      
+                      {showBulkActionsMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 z-10 overflow-hidden">
+                          <button 
+                            onClick={() => { setShowBulkRoleModal(true); setShowBulkActionsMenu(false); }}
+                            className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <UsersIcon size={16} /> Change Role
+                          </button>
+                          <button 
+                            onClick={() => { setShowBulkDepartmentModal(true); setShowBulkActionsMenu(false); }}
+                            className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <AdminIcon size={16} /> Change Department
+                          </button>
+                          <div className="border-t border-slate-100"></div>
+                          <button 
+                            onClick={() => { setShowBulkDeleteModal(true); setShowBulkActionsMenu(false); }}
+                            className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <TrashIcon size={16} /> Delete Selected
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Bulk Actions */}
-              {selectedUsers.size > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-sm font-medium text-amber-800">{selectedUsers.size} users selected</p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setShowBulkRoleModal(true)} className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50">Change Role</button>
-                    <button onClick={() => setShowBulkDepartmentModal(true)} className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50">Change Department</button>
-                    <button onClick={() => setShowBulkDeleteModal(true)} className="px-3 py-1.5 text-sm bg-red-100 text-red-700 border border-red-200 rounded-md hover:bg-red-200">Delete</button>
-                  </div>
-                </div>
-              )}
-
-              {/* User Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-sm text-left text-slate-500">
-                  <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                  <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th scope="col" className="p-4">
-                        <div className="flex items-center">
-                          <input 
-                            id="checkbox-all-users"
-                            type="checkbox" 
-                            className="w-4 h-4 text-amber-600 bg-slate-100 border-slate-300 rounded focus:ring-amber-500"
-                            checked={selectedUsers.size > 0 && selectedUsers.size === filteredUsers.length}
-                            onChange={handleSelectAllUsers}
-                          />
-                          <label htmlFor="checkbox-all-users" className="sr-only">checkbox</label>
-                        </div>
+                      <th className="px-4 py-3 w-10">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={toggleAllUsers}
+                          className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                        />
                       </th>
-                      <th scope="col" className="px-6 py-3">User</th>
-                      <th scope="col" className="px-6 py-3">Badge #</th>
-                      <th scope="col" className="px-6 py-3">Department</th>
-                      <th scope="col" className="px-6 py-3">Rank</th>
-                      <th scope="col" className="px-6 py-3">Role</th>
-                      <th scope="col" className="px-6 py-3">Actions</th>
+                      <th className="px-6 py-3">User</th>
+                      <th className="px-6 py-3">Badge</th>
+                      <th className="px-6 py-3">Department</th>
+                      <th className="px-6 py-3">Role</th>
+                      <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map(user => (
                       <tr key={user.id} className="bg-white border-b hover:bg-slate-50">
-                        <td className="w-4 p-4">
-                          <div className="flex items-center">
-                            <input 
-                              id={`checkbox-user-${user.id}`}
-                              type="checkbox" 
-                              className="w-4 h-4 text-amber-600 bg-slate-100 border-slate-300 rounded focus:ring-amber-500"
-                              checked={selectedUsers.has(user.id)}
-                              onChange={() => handleSelectUser(user.id)}
-                            />
-                            <label htmlFor={`checkbox-user-${user.id}`} className="sr-only">checkbox</label>
-                          </div>
+                        <td className="px-4 py-3">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedUsers.has(user.id)}
+                            onChange={() => toggleUserSelection(user.id)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                          />
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center space-x-3">
-                            <img className="h-10 w-10 rounded-full object-cover" src={user.avatar || 'https://via.placeholder.com/150'} alt={`${user.firstName} ${user.lastName}`} />
+                          <div className="flex items-center gap-3">
+                            <img src={user.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
                             <div>
-                              <div className="font-semibold text-slate-800">{user.firstName} {user.lastName}</div>
-                              <div className="text-slate-500">{user.email}</div>
+                              <div className="font-bold text-slate-900">{user.firstName} {user.lastName}</div>
+                              <div className="text-xs text-slate-500">{user.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">{user.badgeNumber}</td>
+                        <td className="px-6 py-4 font-medium text-slate-700">#{user.badgeNumber}</td>
                         <td className="px-6 py-4">{user.department}</td>
-                        <td className="px-6 py-4">{user.rank || 'N/A'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${{
-                            officer: 'bg-blue-100 text-blue-800',
-                            supervisor: 'bg-purple-100 text-purple-800',
-                            training_coordinator: 'bg-amber-100 text-amber-800',
-                            administrator: 'bg-green-100 text-green-800',
-                          }[user.role]}`}>
-                            {user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            user.role === 'administrator' ? 'bg-purple-100 text-purple-800' :
+                            user.role === 'training_coordinator' ? 'bg-blue-100 text-blue-800' :
+                            user.role === 'supervisor' ? 'bg-amber-100 text-amber-800' :
+                            'bg-slate-100 text-slate-800'
+                          }`}>
+                            {user.role.replace('_', ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-2">
-                            <button onClick={() => openEditUserModal(user)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><EditIcon size={18} /></button>
-                            <button onClick={() => openResetPasswordModal(user)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><KeyIcon size={18} /></button>
-                            <button onClick={() => openDeleteConfirm(user)} className="p-2 text-red-500 hover:bg-red-100 rounded-lg"><TrashIcon size={18} /></button>
+                            <button onClick={() => openEditUserModal(user)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Edit User"><EditIcon size={18} /></button>
+                            <button onClick={() => openResetPasswordModal(user)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Reset Password"><KeyIcon size={18} /></button>
+                            <button onClick={() => openDeleteConfirm(user)} className="p-2 text-red-500 hover:bg-red-100 rounded-lg" title="Delete User"><TrashIcon size={18} /></button>
                           </div>
                         </td>
                       </tr>
@@ -1045,58 +1017,53 @@ const AdminPanel: React.FC = () => {
           )}
 
           {activeTab === 'training' && (
-            <div>
-              {/* Training Management Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">Training Management</h2>
-                  <p className="text-slate-600 mt-1">Total {trainings.length} courses</p>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search training by title, category, or instructor..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1 sm:flex-none">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search courses..."
-                      className="w-full sm:w-64 pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    />
-                  </div>
-                  <div className="p-1 bg-slate-100 rounded-lg">
-                    <button 
-                      onClick={() => setTrainingViewMode('list')} 
-                      className={`px-2 py-1 rounded-md ${trainingViewMode === 'list' ? 'bg-white shadow-sm' : ''}`}>
-                      <ListIcon className="text-slate-600" />
-                    </button>
-                    <button 
-                      onClick={() => setTrainingViewMode('calendar')} 
-                      className={`px-2 py-1 rounded-md ${trainingViewMode === 'calendar' ? 'bg-white shadow-sm' : ''}`}>
-                      <GripIcon className="text-slate-600" />
-                    </button>
-                  </div>
+                
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
                   <button
-                    onClick={() => setShowAddTrainingModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+                    onClick={() => setTrainingViewMode('list')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                      trainingViewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
                   >
-                    <PlusIcon size={20} />
-                    Add Training
+                    <ListIcon size={18} className="inline-block mr-1.5" />
+                    List
+                  </button>
+                  <button
+                    onClick={() => setTrainingViewMode('calendar')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                      trainingViewMode === 'calendar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <CalendarIcon size={18} className="inline-block mr-1.5" />
+                    Calendar
                   </button>
                 </div>
               </div>
 
               {trainingViewMode === 'list' ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
                   <table className="w-full text-sm text-left text-slate-500">
-                    <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                    <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th scope="col" className="px-6 py-3">Course</th>
-                        <th scope="col" className="px-6 py-3">Category</th>
-                        <th scope="col" className="px-6 py-3">Date</th>
-                        <th scope="col" className="px-6 py-3">Instructor</th>
-                        <th scope="col" className="px-6 py-3">Enrolled</th>
-                        <th scope="col" className="px-6 py-3">Status</th>
-                        <th scope="col" className="px-6 py-3">Actions</th>
+                        <th className="px-6 py-3">Training Title</th>
+                        <th className="px-6 py-3">Category</th>
+                        <th className="px-6 py-3">Date</th>
+                        <th className="px-6 py-3">Instructor</th>
+                        <th className="px-6 py-3">Enrollment</th>
+                        <th className="px-6 py-3">Type</th>
+                        <th className="px-6 py-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1208,7 +1175,7 @@ const AdminPanel: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Platoon</label>
                   <select name="platoon" value={newUser.platoon} onChange={handleAddUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
                     <option value="">Not Applicable</option>
-                    {PLATOON_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {PLATOON_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -1228,47 +1195,41 @@ const AdminPanel: React.FC = () => {
       {/* Edit User Modal */}
       {showEditUserModal && editingUser && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleUpdateUser}>
               <div className="p-6 border-b border-slate-200 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-800">Edit User: {editingUser.firstName} {editingUser.lastName}</h2>
                 <button type="button" onClick={() => setShowEditUserModal(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><XIcon /></button>
               </div>
-              <div className="p-6 flex flex-col lg:flex-row gap-8">
-                {/* Avatar Section */}
-                <div className="flex-shrink-0 lg:w-1/3">
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Profile Picture</h3>
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-40 h-40 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
-                      {editAvatarPreview ? (
-                        <img src={editAvatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <UsersIcon className="text-slate-400" size={80} />
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => editAvatarInputRef.current?.click()} className="px-4 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50">Change</button>
-                      <input 
-                        type="file" 
-                        ref={editAvatarInputRef} 
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            setEditAvatarFile(e.target.files[0]);
-                            setEditAvatarPreview(URL.createObjectURL(e.target.files[0]));
-                          }
-                        }}
-                        className="hidden" 
-                        accept="image/*"
-                      />
-                      {editingUser.avatar && (
-                        <button type="button" onClick={() => setShowRemoveAvatarConfirm(true)} className="px-4 py-2 text-sm bg-red-100 text-red-700 border border-red-200 rounded-md hover:bg-red-200">Remove</button>
-                      )}
-                    </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Left Column: Avatar */}
+                <div className="md:col-span-1 flex flex-col items-center">
+                  <div className="relative group">
+                    <img 
+                      src={editAvatarPreview || editingUser.avatar} 
+                      alt="" 
+                      className="w-32 h-32 rounded-full object-cover border-4 border-slate-100 shadow-md" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => editAvatarInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 p-2 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors"
+                    >
+                      <CameraIcon size={16} />
+                    </button>
                   </div>
+                  <input 
+                    type="file" 
+                    ref={editAvatarInputRef} 
+                    onChange={handleAvatarFileChange}
+                    className="hidden" 
+                    accept="image/*"
+                  />
+                  <p className="text-xs text-slate-500 mt-4 text-center">Click the camera icon to change profile photo</p>
                 </div>
 
-                {/* Form Fields */}
-                <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Right Column: Form Fields */}
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
                     <input type="text" name="firstName" value={editUserForm.firstName} onChange={handleEditUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
@@ -1321,7 +1282,7 @@ const AdminPanel: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Platoon</label>
                     <select name="platoon" value={editUserForm.platoon} onChange={handleEditUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
                       <option value="">Not Applicable</option>
-                      {PLATOON_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                      {PLATOON_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1335,6 +1296,151 @@ const AdminPanel: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && resetPasswordUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <form onSubmit={handleResetPassword}>
+              <div className="p-6 border-b border-slate-200">
+                <h2 className="text-xl font-bold text-slate-800">Reset Password</h2>
+                <p className="text-sm text-slate-600 mt-1">For {resetPasswordUser.firstName} {resetPasswordUser.lastName}</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                {resetPasswordError && <p className="text-sm text-red-500">{resetPasswordError}</p>}
+                {resetPasswordSuccess && <p className="text-sm text-green-500">Password reset successfully!</p>}
+              </div>
+              <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowResetPasswordModal(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+                <button type="submit" disabled={isResettingPassword} className="px-4 py-2 bg-slate-800 text-white font-medium rounded-lg disabled:bg-slate-600">
+                  {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation */}
+      {showDeleteConfirm && deletingUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertIcon size={24} />
+              <h2 className="text-xl font-bold">Delete User?</h2>
+            </div>
+            <p className="text-slate-600 mb-6">
+              Are you sure you want to delete <strong>{deletingUser.firstName} {deletingUser.lastName}</strong>? This action cannot be undone and will remove all associated training records.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+              <button onClick={handleDeleteUser} disabled={isDeletingUser} className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-400">
+                {isDeletingUser ? 'Deleting...' : 'Delete User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertIcon size={24} />
+              <h2 className="text-xl font-bold">Delete Multiple Users?</h2>
+            </div>
+            <p className="text-slate-600 mb-6">
+              Are you sure you want to delete <strong>{selectedUsers.size}</strong> selected users? This action cannot be undone.
+            </p>
+            {bulkOperationError && <p className="text-sm text-red-500 mb-4">{bulkOperationError}</p>}
+            {bulkOperationSuccess && <p className="text-sm text-green-500 mb-4">{bulkOperationSuccess}</p>}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowBulkDeleteModal(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+              <button onClick={handleBulkDelete} disabled={isBulkProcessing} className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-400">
+                {isBulkProcessing ? 'Processing...' : 'Delete All Selected'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Role Modal */}
+      {showBulkRoleModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-800 mb-4">Change Role for {selectedUsers.size} Users</h2>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Select New Role</label>
+              <select 
+                value={bulkRole} 
+                onChange={(e) => setBulkRole(e.target.value as User['role'])}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+              >
+                <option value="officer">Officer</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="training_coordinator">Training Coordinator</option>
+                <option value="administrator">Administrator</option>
+              </select>
+            </div>
+            {bulkOperationError && <p className="text-sm text-red-500 mb-4">{bulkOperationError}</p>}
+            {bulkOperationSuccess && <p className="text-sm text-green-500 mb-4">{bulkOperationSuccess}</p>}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowBulkRoleModal(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+              <button onClick={handleBulkRoleUpdate} disabled={isBulkProcessing} className="px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 disabled:bg-amber-300">
+                {isBulkProcessing ? 'Updating...' : 'Update Roles'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Department Modal */}
+      {showBulkDepartmentModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-800 mb-4">Change Department for {selectedUsers.size} Users</h2>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Enter New Department</label>
+              <input 
+                type="text"
+                value={bulkDepartment} 
+                onChange={(e) => setBulkDepartment(e.target.value)}
+                placeholder="e.g. Patrol, Investigations"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              />
+            </div>
+            {bulkOperationError && <p className="text-sm text-red-500 mb-4">{bulkOperationError}</p>}
+            {bulkOperationSuccess && <p className="text-sm text-green-500 mb-4">{bulkOperationSuccess}</p>}
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowBulkDepartmentModal(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+              <button onClick={handleBulkDepartmentUpdate} disabled={isBulkProcessing} className="px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 disabled:bg-amber-300">
+                {isBulkProcessing ? 'Updating...' : 'Update Departments'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1366,12 +1472,13 @@ const AdminPanel: React.FC = () => {
                     className="hidden" 
                     accept="image/*"
                   />
+                  <p className="text-xs text-slate-500 mt-4 text-center">Recommended: 16:9 aspect ratio</p>
                 </div>
 
                 {/* Right Column: Form Fields */}
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Training Title *</label>
                     <input type="text" name="title" value={newTraining.title} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                   </div>
                   <div className="sm:col-span-2">
@@ -1397,12 +1504,12 @@ const AdminPanel: React.FC = () => {
                     <input type="text" name="time" value={newTraining.time} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Duration *</label>
-                    <input type="text" name="duration" value={newTraining.duration} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required placeholder="e.g., 8 hours" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Duration</label>
+                    <input type="text" name="duration" value={newTraining.duration} onChange={handleAddTrainingInputChange} placeholder="e.g. 4 hours" className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Location *</label>
-                    <input type="text" name="location" value={newTraining.location} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                    <input type="text" name="location" value={newTraining.location} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Capacity</label>
@@ -1413,31 +1520,31 @@ const AdminPanel: React.FC = () => {
                     <input type="number" name="credits" value={newTraining.credits} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Prerequisites</label>
-                    <input type="text" name="prerequisites" value={newTraining.prerequisites} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Comma-separated, e.g., CPR Certified" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Prerequisites (comma separated)</label>
+                    <input type="text" name="prerequisites" value={newTraining.prerequisites} onChange={handleAddTrainingInputChange} placeholder="e.g. Basic Firearms, Tactical I" className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
-                  <div className="sm:col-span-2 flex items-center gap-2">
-                    <input type="checkbox" name="mandatory" id="mandatory-add" checked={newTraining.mandatory} onChange={handleAddTrainingInputChange} className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
-                    <label htmlFor="mandatory-add" className="text-sm font-medium text-slate-700">This training is mandatory</label>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" name="mandatory" id="mandatory" checked={newTraining.mandatory} onChange={handleAddTrainingInputChange} className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                    <label htmlFor="mandatory" className="text-sm font-medium text-slate-700">Mandatory Training</label>
                   </div>
-                  <div className="sm:col-span-2 flex items-center gap-2">
-                    <input type="checkbox" name="isCpt" id="isCpt-add" checked={newTraining.isCpt} onChange={handleAddTrainingInputChange} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-                    <label htmlFor="isCpt-add" className="text-sm font-medium text-slate-700">This training counts toward CPT (Continuing Professional Training)</label>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" name="isCpt" id="isCpt" checked={newTraining.isCpt} onChange={handleAddTrainingInputChange} className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                    <label htmlFor="isCpt" className="text-sm font-medium text-slate-700">CPT Eligible</label>
                   </div>
                   {newTraining.isCpt && (
-                    <div className="sm:col-span-2">
+                    <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">CPT Hours</label>
-                      <input type="number" name="cptHours" value={newTraining.cptHours} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" min="0" step="0.5" placeholder="Enter CPT hours" />
+                      <input type="number" name="cptHours" value={newTraining.cptHours} onChange={handleAddTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                     </div>
                   )}
                 </div>
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-end gap-4">
                 {trainingError && <p className="text-sm text-red-500">{trainingError}</p>}
-                {trainingSuccess && <p className="text-sm text-green-500 flex items-center gap-2"><CheckIcon /> Training created successfully!</p>}
+                {trainingSuccess && <p className="text-sm text-green-500 flex items-center gap-2"><CheckIcon /> Training added successfully!</p>}
                 <button type="button" onClick={() => setShowAddTrainingModal(false)} className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg">Cancel</button>
-                <button type="submit" disabled={isProcessingTraining} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg disabled:bg-amber-300">
-                  {isProcessingTraining ? 'Creating...' : 'Create Training'}
+                <button type="submit" disabled={isProcessingTraining || isUploadingTrainingImage} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg disabled:bg-amber-300">
+                  {isProcessingTraining ? 'Adding...' : (isUploadingTrainingImage ? 'Uploading...' : 'Add Training')}
                 </button>
               </div>
             </form>
@@ -1451,18 +1558,14 @@ const AdminPanel: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleUpdateTraining}>
               <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Edit Training</h2>
+                <h2 className="text-xl font-bold text-slate-800">Edit Training: {editingTraining.title}</h2>
                 <button type="button" onClick={() => setShowEditTrainingModal(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><XIcon /></button>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Left Column: Image */}
                 <div className="md:col-span-1 flex flex-col items-center">
                   <div className="w-full aspect-video rounded-lg bg-slate-100 mb-4 overflow-hidden flex items-center justify-center">
-                    {trainingImagePreview ? (
-                      <img src={trainingImagePreview} alt="Training preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <CameraIcon className="text-slate-400" size={48} />
-                    )}
+                    <img src={trainingImagePreview || editTrainingForm.image} alt="Training preview" className="w-full h-full object-cover" />
                   </div>
                   <button type="button" onClick={() => trainingImageInputRef.current?.click()} className="w-full px-4 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50">Change Image</button>
                   <input 
@@ -1475,9 +1578,9 @@ const AdminPanel: React.FC = () => {
                 </div>
 
                 {/* Right Column: Form Fields */}
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Training Title *</label>
                     <input type="text" name="title" value={editTrainingForm.title} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                   </div>
                   <div className="sm:col-span-2">
@@ -1503,12 +1606,12 @@ const AdminPanel: React.FC = () => {
                     <input type="text" name="time" value={editTrainingForm.time} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Duration *</label>
-                    <input type="text" name="duration" value={editTrainingForm.duration} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Duration</label>
+                    <input type="text" name="duration" value={editTrainingForm.duration} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Location *</label>
-                    <input type="text" name="location" value={editTrainingForm.location} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" required />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                    <input type="text" name="location" value={editTrainingForm.location} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Capacity</label>
@@ -1519,21 +1622,21 @@ const AdminPanel: React.FC = () => {
                     <input type="number" name="credits" value={editTrainingForm.credits} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Prerequisites</label>
-                    <input type="text" name="prerequisites" value={editTrainingForm.prerequisites} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Comma-separated" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Prerequisites (comma separated)</label>
+                    <input type="text" name="prerequisites" value={editTrainingForm.prerequisites} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                   </div>
-                  <div className="sm:col-span-2 flex items-center gap-2">
-                    <input type="checkbox" name="mandatory" id="mandatory-edit" checked={editTrainingForm.mandatory} onChange={handleEditTrainingInputChange} className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
-                    <label htmlFor="mandatory-edit" className="text-sm font-medium text-slate-700">This training is mandatory</label>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" name="mandatory" id="edit-mandatory" checked={editTrainingForm.mandatory} onChange={handleEditTrainingInputChange} className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                    <label htmlFor="edit-mandatory" className="text-sm font-medium text-slate-700">Mandatory Training</label>
                   </div>
-                  <div className="sm:col-span-2 flex items-center gap-2">
-                    <input type="checkbox" name="isCpt" id="isCpt-edit" checked={editTrainingForm.isCpt} onChange={handleEditTrainingInputChange} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-                    <label htmlFor="isCpt-edit" className="text-sm font-medium text-slate-700">This training counts toward CPT (Continuing Professional Training)</label>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" name="isCpt" id="edit-isCpt" checked={editTrainingForm.isCpt} onChange={handleEditTrainingInputChange} className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                    <label htmlFor="edit-isCpt" className="text-sm font-medium text-slate-700">CPT Eligible</label>
                   </div>
                   {editTrainingForm.isCpt && (
-                    <div className="sm:col-span-2">
+                    <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">CPT Hours</label>
-                      <input type="number" name="cptHours" value={editTrainingForm.cptHours} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" min="0" step="0.5" placeholder="Enter CPT hours" />
+                      <input type="number" name="cptHours" value={editTrainingForm.cptHours} onChange={handleEditTrainingInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                     </div>
                   )}
                 </div>
@@ -1542,8 +1645,8 @@ const AdminPanel: React.FC = () => {
                 {trainingError && <p className="text-sm text-red-500">{trainingError}</p>}
                 {trainingSuccess && <p className="text-sm text-green-500 flex items-center gap-2"><CheckIcon /> Training updated successfully!</p>}
                 <button type="button" onClick={() => setShowEditTrainingModal(false)} className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg">Cancel</button>
-                <button type="submit" disabled={isProcessingTraining} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg disabled:bg-amber-300">
-                  {isProcessingTraining ? 'Saving...' : 'Save Changes'}
+                <button type="submit" disabled={isProcessingTraining || isUploadingTrainingImage} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg disabled:bg-amber-300">
+                  {isProcessingTraining ? 'Saving...' : (isUploadingTrainingImage ? 'Uploading...' : 'Save Changes')}
                 </button>
               </div>
             </form>
@@ -1551,137 +1654,22 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Training Modal */}
+      {/* Delete Training Confirmation */}
       {showDeleteTrainingModal && deletingTraining && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-100 mx-auto flex items-center justify-center">
-                <TrashIcon className="text-red-600" size={32} />
-              </div>
-              <h2 className="mt-4 text-xl font-bold text-slate-800">Delete Training</h2>
-              <p className="mt-2 text-slate-600">Are you sure you want to delete "{deletingTraining.title}"? This action cannot be undone.</p>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <AlertIcon size={24} />
+              <h2 className="text-xl font-bold">Delete Training?</h2>
             </div>
-            <div className="p-6 bg-slate-50 rounded-b-2xl flex justify-center gap-4">
-              <button onClick={() => setShowDeleteTrainingModal(false)} className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg">Cancel</button>
-              <button onClick={handleDeleteTraining} disabled={isProcessingTraining} className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg disabled:bg-red-400">
-                {isProcessingTraining ? 'Deleting...' : 'Delete'}
+            <p className="text-slate-600 mb-6">
+              Are you sure you want to delete <strong>{deletingTraining.title}</strong>? This will also remove all enrollment records for this training.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowDeleteTrainingModal(false)} className="px-4 py-2 text-slate-700 font-medium">Cancel</button>
+              <button onClick={handleDeleteTraining} disabled={isProcessingTraining} className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-400">
+                {isProcessingTraining ? 'Deleting...' : 'Delete Training'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete User Modal */}
-      {showDeleteConfirm && deletingUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-100 mx-auto flex items-center justify-center">
-                <UsersIcon className="text-red-600" size={32} />
-              </div>
-              <h2 className="mt-4 text-xl font-bold text-slate-800">Delete User</h2>
-              <p className="mt-2 text-slate-600">Are you sure you want to delete {deletingUser.firstName} {deletingUser.lastName}? This will permanently remove their account and data.</p>
-            </div>
-            <div className="p-6 bg-slate-50 rounded-b-2xl flex justify-center gap-4">
-              <button onClick={() => setShowDeleteConfirm(false)} className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg">Cancel</button>
-              <button onClick={handleDeleteUser} disabled={isDeletingUser} className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg disabled:bg-red-400">
-                {isDeletingUser ? 'Deleting...' : 'Delete User'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Password Modal */}
-      {showResetPasswordModal && resetPasswordUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-slate-800">Reset Password</h2>
-              <p className="mt-1 text-slate-600">for {resetPasswordUser.firstName} {resetPasswordUser.lastName}</p>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
-                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
-                </div>
-              </div>
-              {resetPasswordError && <p className="text-sm text-red-500 mt-2">{resetPasswordError}</p>}
-              {resetPasswordSuccess && <p className="text-sm text-green-500 mt-2">Password reset successfully!</p>}
-            </div>
-            <div className="p-6 bg-slate-50 rounded-b-2xl flex justify-end gap-4">
-              <button onClick={() => setShowResetPasswordModal(false)} className="px-4 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg">Cancel</button>
-              <button onClick={handleResetPassword} disabled={isResettingPassword} className="px-4 py-2.5 bg-amber-500 text-white font-medium rounded-lg disabled:bg-amber-300">
-                {isResettingPassword ? 'Resetting...' : 'Reset Password'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Action Modals */}
-      {showBulkDeleteModal && (
-        <Modal title="Confirm Bulk Deletion" onClose={() => setShowBulkDeleteModal(false)} onConfirm={handleBulkDelete} loading={isBulkProcessing}>
-          Are you sure you want to delete {selectedUsers.size} selected users? This action is irreversible.
-        </Modal>
-      )}
-      {showBulkRoleModal && (
-        <Modal title="Change Role for Users" onClose={() => setShowBulkRoleModal(false)} onConfirm={handleBulkRoleChange} loading={isBulkProcessing}>
-          <label className="block text-sm font-medium text-slate-700 mb-1">New Role</label>
-          <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as User['role'])} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
-            <option value="officer">Officer</option>
-            <option value="supervisor">Supervisor</option>
-            <option value="training_coordinator">Training Coordinator</option>
-            <option value="administrator">Administrator</option>
-          </select>
-        </Modal>
-      )}
-      {showBulkDepartmentModal && (
-        <Modal title="Change Department for Users" onClose={() => setShowBulkDepartmentModal(false)} onConfirm={handleBulkDepartmentChange} loading={isBulkProcessing}>
-          <label className="block text-sm font-medium text-slate-700 mb-1">New Department</label>
-          <input type="text" value={bulkDepartment} onChange={(e) => setBulkDepartment(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
-        </Modal>
-      )}
-      
-      {/* Calendar Day Modal */}
-      {showDayModal && selectedDate && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full">
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">{formatDate(selectedDate)}</h2>
-              <button onClick={() => setShowDayModal(false)} className="p-2 hover:bg-slate-100 rounded-lg"><XIcon /></button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              {trainings.filter(t => t.date === selectedDate).map(training => (
-                <div key={training.id} className="p-4 bg-slate-50 rounded-lg">
-                  <h3 className="font-semibold text-slate-800">{training.title}</h3>
-                  <p className="text-sm text-slate-600">{training.time} - {training.location}</p>
-                  <div className="mt-2 text-xs text-slate-500">{training.enrolled}/{training.capacity} enrolled</div>
-                </div>
-              ))}
-              {trainings.filter(t => t.date === selectedDate).length === 0 && (
-                <p className="text-slate-600">No training scheduled for this day.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Remove Avatar Confirmation Modal */}
-      {showRemoveAvatarConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-6 text-center">
-              <h2 className="text-xl font-bold text-slate-800">Remove Avatar</h2>
-              <p className="mt-2 text-slate-600">Are you sure you want to remove the avatar? This will reset it to the default.</p>
-            </div>
-            <div className="p-6 bg-slate-50 rounded-b-2xl flex justify-center gap-4">
-              <button onClick={() => setShowRemoveAvatarConfirm(false)} className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg">Cancel</button>
-              <button onClick={handleRemoveAvatar} className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg">Remove</button>
             </div>
           </div>
         </div>
@@ -1689,76 +1677,5 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 };
-
-const StatCard: React.FC<{ icon: React.ReactNode; title: string; value: number | string; color?: string }> = ({ icon, title, value, color = 'amber' }) => {
-  const colors: Record<string, string> = {
-    amber: 'bg-amber-100 text-amber-600',
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    red: 'bg-red-100 text-red-600',
-    slate: 'bg-slate-100 text-slate-600',
-  };
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center space-x-4">
-      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colors[color]}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm text-slate-500">{title}</p>
-        <p className="text-2xl font-bold text-slate-800">{value}</p>
-      </div>
-    </div>
-  );
-};
-
-const TabButton: React.FC<{ name: string; activeTab: string; setActiveTab: (tab: any) => void; icon: React.ReactNode; children: React.ReactNode }> = ({ name, activeTab, setActiveTab, icon, children }) => (
-  <button
-    onClick={() => setActiveTab(name)}
-    className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-      activeTab === name
-        ? 'border-amber-500 text-amber-600'
-        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-    }`}
-  >
-    {icon}
-    {children}
-  </button>
-);
-
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const styles: Record<string, string> = {
-    draft: 'bg-slate-100 text-slate-700',
-    submitted: 'bg-blue-100 text-blue-700',
-    supervisor_review: 'bg-amber-100 text-amber-700',
-    admin_approval: 'bg-purple-100 text-purple-700',
-    approved: 'bg-green-100 text-green-700',
-    scheduled: 'bg-cyan-100 text-cyan-700',
-    denied: 'bg-red-100 text-red-700',
-    completed: 'bg-slate-100 text-slate-700',
-  };
-  const label = status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || styles.draft}`}>
-      {label}
-    </span>
-  );
-};
-
-const Modal: React.FC<{ title: string; onClose: () => void; onConfirm: () => void; loading: boolean; children: React.ReactNode }> = ({ title, onClose, onConfirm, loading, children }) => (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl max-w-md w-full">
-      <div className="p-6">
-        <h2 className="text-xl font-bold text-slate-800">{title}</h2>
-        <div className="mt-4 text-slate-600">{children}</div>
-      </div>
-      <div className="p-6 bg-slate-50 rounded-b-2xl flex justify-end gap-4">
-        <button onClick={onClose} className="px-4 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg">Cancel</button>
-        <button onClick={onConfirm} disabled={loading} className="px-4 py-2.5 bg-amber-500 text-white font-medium rounded-lg disabled:bg-amber-300">
-          {loading ? 'Processing...' : 'Confirm'}
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 export default AdminPanel;
