@@ -1026,6 +1026,7 @@ const AdminPanel: React.FC = () => {
                         <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${
                           user.role === 'administrator' ? 'bg-purple-50 text-purple-600' :
                           user.role === 'training_coordinator' ? 'bg-blue-50 text-blue-600' :
+                          user.role === 'accounting' ? 'bg-emerald-50 text-emerald-600' :
                           user.role === 'supervisor' ? 'bg-amber-50 text-amber-600' :
                           'bg-slate-100 text-slate-600'
                         }`}>
@@ -1209,6 +1210,7 @@ const AdminPanel: React.FC = () => {
                   <select name="role" value={newUser.role} onChange={handleAddUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white" required>
                     <option value="officer">Officer</option>
                     <option value="supervisor">Supervisor</option>
+                    <option value="accounting">Accounting</option>
                     <option value="training_coordinator">Training Coordinator</option>
                     <option value="administrator">Administrator</option>
                   </select>
@@ -1316,6 +1318,7 @@ const AdminPanel: React.FC = () => {
                     <select name="role" value={editUserForm.role} onChange={handleEditUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white" required>
                       <option value="officer">Officer</option>
                       <option value="supervisor">Supervisor</option>
+                      <option value="accounting">Accounting</option>
                       <option value="training_coordinator">Training Coordinator</option>
                       <option value="administrator">Administrator</option>
                     </select>
@@ -1473,6 +1476,7 @@ const AdminPanel: React.FC = () => {
               >
                 <option value="officer">Officer</option>
                 <option value="supervisor">Supervisor</option>
+                <option value="accounting">Accounting</option>
                 <option value="training_coordinator">Training Coordinator</option>
                 <option value="administrator">Administrator</option>
               </select>
