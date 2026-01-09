@@ -1723,7 +1723,7 @@ const AdminPanel: React.FC = () => {
       {/* Delete Training Confirmation */}
       {showDeleteTrainingModal && deletingTraining && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="bg-white rounded-2xl max-md w-full p-6">
             <div className="flex items-center gap-4 text-red-600 mb-4">
               <div className="p-3 bg-red-50 rounded-full"><AlertIcon size={24} /></div>
               <h2 className="text-xl font-bold">Delete Training?</h2>
