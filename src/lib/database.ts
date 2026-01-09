@@ -1228,7 +1228,8 @@ function mapRequestFromDb(data: Record<string, unknown>): TrainingRequest {
     scheduledDate: data.scheduled_date as string | undefined,
     notes: data.notes as string || '',
     denialReason: data.denial_reason as string | undefined,
-  };
+    originalData: data,
+  } as TrainingRequest & { originalData: any };
 }
 
 function mapNotificationFromDb(data: Record<string, unknown>): Notification {
@@ -1642,7 +1643,8 @@ function mapInternalTrainingFromDb(data: Record<string, unknown>): InternalTrain
     denialReason: data.denial_reason as string | undefined,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string | undefined,
-  };
+    originalData: data,
+  } as InternalTrainingRequest & { originalData: any };
 }
 
 // Helper function to map external training request from DB
@@ -1681,7 +1683,8 @@ function mapExternalTrainingFromDb(data: Record<string, unknown>): ExternalTrain
     denialReason: data.denial_reason as string | undefined,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string | undefined,
-  };
+    originalData: data,
+  } as ExternalTrainingRequest & { originalData: any };
 }
 
 // Training Attendance types

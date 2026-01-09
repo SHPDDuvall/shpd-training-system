@@ -366,6 +366,13 @@ const Approvals: React.FC = () => {
         }
       }
 
+      // Also update the main training_requests table if it exists
+      // This ensures the Chain of Command tracker and other views stay in sync
+      await supabase
+        .from('training_requests')
+        .update(updateData)
+        .eq('id', selectedRequest.id);
+
       setShowEditModal(false);
       setSelectedRequest(null);
       setToastMessage('Request updated successfully!');

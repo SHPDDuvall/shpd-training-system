@@ -79,7 +79,7 @@ const ChainOfCommand: React.FC = () => {
     const originalData = (request as any).originalData || {};
     
     // Get approvers from the request data
-    const trainingCoordinator = request.supervisorId ? getUserById(request.supervisorId) : null;
+    const trainingCoordinator = request.supervisorId || originalData.supervisor_id ? getUserById(request.supervisorId || originalData.supervisor_id) : null;
     const shiftCommander = originalData.commander_id ? getUserById(originalData.commander_id) : null;
     const chief = originalData.chief_id ? getUserById(originalData.chief_id) : null;
     
