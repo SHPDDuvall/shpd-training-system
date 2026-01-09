@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { sendApprovalNotification, sendDenialNotification, sendGeneralEmail } from '@/lib/emailService';
+import { sendApprovalNotification, sendDenialNotification, sendGeneralEmail, sendApproverNotification } from '@/lib/emailService';
 import { trainingService, certificateService, notificationService, externalTrainingService, requestService } from '@/lib/database';
 import ChainOfCommand from '@/components/ChainOfCommand';
 import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
@@ -449,6 +449,20 @@ const Approvals: React.FC = () => {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
 
+      // Send notifications to newly assigned approvers
+      const newApprovers = [];
+      if (editFormData.step1Id && editFormData.step1Id !== selectedRequest.step1Id) newApprovers.push({ user: step1User, step: 1 });
+      if (editFormData.step2Id && editFormData.step2Id !== selectedRequest.step2Id) newApprovers.push({ user: step2User, step: 2 });
+      if (editFormData.step3Id && editFormData.step3Id !== selectedRequest.step3Id) newApprovers.push({ user: step3User, step: 3 });
+      if (editFormData.step4Id && editFormData.step4Id !== selectedRequest.step4Id) newApprovers.push({ user: step4User, step: 4 });
+      if (editFormData.step5Id && editFormData.step5Id !== selectedRequest.step5Id) newApprovers.push({ user: step5User, step: 5 });
+
+      for (const { user: approver, step } of newApprovers) {
+        if (approver) {
+          await sendApproverNotification(selectedRequest, approver, step);
+        }
+      }
+
       // Refresh requests
       await refreshRequests();
     } finally {
@@ -523,6 +537,20 @@ const Approvals: React.FC = () => {
       setToastMessage(actionType === 'approve' ? 'Request approved successfully!' : 'Request denied');
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
+
+      // Send notifications to newly assigned approvers
+      const newApprovers = [];
+      if (editFormData.step1Id && editFormData.step1Id !== selectedRequest.step1Id) newApprovers.push({ user: step1User, step: 1 });
+      if (editFormData.step2Id && editFormData.step2Id !== selectedRequest.step2Id) newApprovers.push({ user: step2User, step: 2 });
+      if (editFormData.step3Id && editFormData.step3Id !== selectedRequest.step3Id) newApprovers.push({ user: step3User, step: 3 });
+      if (editFormData.step4Id && editFormData.step4Id !== selectedRequest.step4Id) newApprovers.push({ user: step4User, step: 4 });
+      if (editFormData.step5Id && editFormData.step5Id !== selectedRequest.step5Id) newApprovers.push({ user: step5User, step: 5 });
+
+      for (const { user: approver, step } of newApprovers) {
+        if (approver) {
+          await sendApproverNotification(selectedRequest, approver, step);
+        }
+      }
 
       // Refresh requests
       await refreshRequests();

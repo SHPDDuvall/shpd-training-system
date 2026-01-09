@@ -449,3 +449,37 @@ export const sendCertificateExpiryWarnings = async (
 
   return { success: errors.length === 0, sentCount, errors };
 };
+
+/**
+ * Send notification to a specific approver assigned to a step
+ */
+export const sendApproverNotification = async (
+  request: any,
+  approver: User,
+  stepNumber: number
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-approval-email', {
+      body: {
+        type: 'notification',
+        requestId: request.id,
+        requestTitle: request.trainingTitle || request.eventName || request.courseName,
+        requesterName: request.userName || 'Unknown',
+        recipientEmail: approver.email,
+        recipientName: `${approver.firstName} ${approver.lastName}`,
+        subject: `Action Required: You have been assigned as Approver #${stepNumber}`,
+        body: `You have been assigned as the #${stepNumber} approver for a training request: "${request.trainingTitle || request.eventName || request.courseName}".\n\nPlease log in to the Training Management System to review the request and set your approval status.`,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending approver notification:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in sendApproverNotification:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+};
