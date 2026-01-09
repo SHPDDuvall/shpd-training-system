@@ -141,6 +141,24 @@ const Approvals: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'standard' | 'custom'>('standard');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState<{
+    status: string;
+    notes: string;
+    supervisorApprovalDate: string;
+    commanderApprovalDate: string;
+    chiefApprovalDate: string;
+    scheduledDate: string;
+    denialReason: string;
+  }>({
+    status: '',
+    notes: '',
+    supervisorApprovalDate: '',
+    commanderApprovalDate: '',
+    chiefApprovalDate: '',
+    scheduledDate: '',
+    denialReason: '',
+  });
 
   useEffect(() => {
     loadTrainings();
@@ -248,6 +266,83 @@ const Approvals: React.FC = () => {
     setActionType(type);
     setActionNotes('');
     setShowActionModal(true);
+  };
+
+  const handleEdit = (request: TrainingRequest) => {
+    setSelectedRequest(request);
+    const originalData = (request as any).originalData || {};
+    setEditFormData({
+      status: request.status,
+      notes: request.notes || '',
+      supervisorApprovalDate: request.supervisorApprovalDate || originalData.supervisor_approval_date || '',
+      commanderApprovalDate: originalData.commander_approval_date || '',
+      chiefApprovalDate: originalData.chief_approval_date || '',
+      scheduledDate: request.scheduledDate || '',
+      denialReason: request.denialReason || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const confirmEdit = async () => {
+    if (!selectedRequest || !user) return;
+
+    setIsProcessing(true);
+    try {
+      // Check if this is an external training request
+      const hasEventName = 'eventName' in selectedRequest;
+      const hasExternalFields = 'eventLocation' in selectedRequest || 'eventDate' in selectedRequest || 'estimatedCost' in selectedRequest;
+      const isExternalRequest = hasEventName || hasExternalFields;
+
+      const updateData: Record<string, unknown> = {
+        status: editFormData.status,
+        notes: editFormData.notes || null,
+        denial_reason: editFormData.denialReason || null,
+        scheduled_date: editFormData.scheduledDate || null,
+        supervisor_approval_date: editFormData.supervisorApprovalDate || null,
+        commander_approval_date: editFormData.commanderApprovalDate || null,
+        chief_approval_date: editFormData.chiefApprovalDate || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (isExternalRequest) {
+        const { error } = await supabase
+          .from('external_training_requests')
+          .update(updateData)
+          .eq('id', selectedRequest.id);
+
+        if (error) {
+          console.error('Error updating external request:', error);
+          setToastMessage('Failed to update request. Please try again.');
+          setShowSuccessToast(true);
+          setTimeout(() => setShowSuccessToast(false), 3000);
+          return;
+        }
+      } else {
+        const { error } = await supabase
+          .from('internal_training_requests')
+          .update(updateData)
+          .eq('id', selectedRequest.id);
+
+        if (error) {
+          console.error('Error updating internal request:', error);
+          setToastMessage('Failed to update request. Please try again.');
+          setShowSuccessToast(true);
+          setTimeout(() => setShowSuccessToast(false), 3000);
+          return;
+        }
+      }
+
+      setShowEditModal(false);
+      setSelectedRequest(null);
+      setToastMessage('Request updated successfully!');
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+
+      // Refresh requests
+      await refreshRequests();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCustomAction = (request: CustomTrainingRequest & { customFields?: CustomFieldValue[] }, type: 'approve' | 'deny') => {
@@ -755,6 +850,16 @@ const Approvals: React.FC = () => {
                           <XIcon size={18} />
                           Deny
                         </button>
+                        {(user?.role === 'administrator' || user?.role === 'training_coordinator') && (
+                          <button
+                            onClick={() => handleEdit(request)}
+                            disabled={isProcessing}
+                            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            Edit Request
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1091,6 +1196,130 @@ const Approvals: React.FC = () => {
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   `Confirm ${actionType === 'approve' ? 'Approval' : 'Denial'}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Request Modal */}
+      {showEditModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-blue-200 bg-blue-50">
+              <h2 className="text-xl font-bold text-blue-800">Edit Training Request</h2>
+              <p className="mt-1 text-blue-700">{selectedRequest.trainingTitle}</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
+                <select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="submitted">Submitted</option>
+                  <option value="supervisor_review">Training Coordinator Review</option>
+                  <option value="admin_approval">Shift Commander Review</option>
+                  <option value="approved">Approved</option>
+                  <option value="denied">Denied</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              {/* Approval Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Training Coordinator Approval Date</label>
+                  <input
+                    type="date"
+                    value={editFormData.supervisorApprovalDate ? editFormData.supervisorApprovalDate.split('T')[0] : ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, supervisorApprovalDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Shift Commander Approval Date</label>
+                  <input
+                    type="date"
+                    value={editFormData.commanderApprovalDate ? editFormData.commanderApprovalDate.split('T')[0] : ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, commanderApprovalDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Chief Approval Date</label>
+                  <input
+                    type="date"
+                    value={editFormData.chiefApprovalDate ? editFormData.chiefApprovalDate.split('T')[0] : ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, chiefApprovalDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Scheduled Date */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Scheduled Date</label>
+                <input
+                  type="date"
+                  value={editFormData.scheduledDate ? editFormData.scheduledDate.split('T')[0] : ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, scheduledDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                <textarea
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                  rows={3}
+                  placeholder="Add any notes..."
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Denial Reason */}
+              {editFormData.status === 'denied' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Denial Reason</label>
+                  <textarea
+                    value={editFormData.denialReason}
+                    onChange={(e) => setEditFormData({ ...editFormData, denialReason: e.target.value })}
+                    rows={3}
+                    placeholder="Provide a reason for denial..."
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedRequest(null);
+                }}
+                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmEdit}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Save Changes'
                 )}
               </button>
             </div>

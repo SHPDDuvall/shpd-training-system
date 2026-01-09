@@ -75,51 +75,110 @@ const ChainOfCommand: React.FC = () => {
 
   const getApprovalChain = (request: TrainingRequest) => {
     const requester = getUserById(request.userId);
-    const supervisor = request.supervisorId ? getUserById(request.supervisorId) : null;
-    const admin = request.adminId ? getUserById(request.adminId) : null;
+    // Access extended request data from originalData if available
+    const originalData = (request as any).originalData || {};
+    
+    // Get approvers from the request data
+    const trainingCoordinator = request.supervisorId ? getUserById(request.supervisorId) : null;
+    const shiftCommander = originalData.commander_id ? getUserById(originalData.commander_id) : null;
+    const chief = originalData.chief_id ? getUserById(originalData.chief_id) : null;
+    
+    // Get approval dates
+    const coordinatorApprovalDate = request.supervisorApprovalDate || originalData.supervisor_approval_date;
+    const commanderApprovalDate = originalData.commander_approval_date;
+    const chiefApprovalDate = originalData.chief_approval_date;
+    
+    // Determine current step based on status and approval dates
+    const isDenied = request.status === 'denied';
+    const isApproved = request.status === 'approved' || request.status === 'scheduled' || request.status === 'completed';
+    
+    // Step 1: Request Submitted - always completed if request exists
+    const step1Status = 'completed';
+    
+    // Step 2: Training Coordinator Review
+    let step2Status: 'pending' | 'current' | 'completed' | 'denied' = 'pending';
+    if (isDenied && !coordinatorApprovalDate) {
+      step2Status = 'denied';
+    } else if (coordinatorApprovalDate) {
+      step2Status = 'completed';
+    } else if (request.status === 'submitted' || request.status === 'supervisor_review') {
+      step2Status = 'current';
+    }
+    
+    // Step 3: Shift Commander Review
+    let step3Status: 'pending' | 'current' | 'completed' | 'denied' = 'pending';
+    if (isDenied && coordinatorApprovalDate && !commanderApprovalDate) {
+      step3Status = 'denied';
+    } else if (commanderApprovalDate) {
+      step3Status = 'completed';
+    } else if (coordinatorApprovalDate && !commanderApprovalDate) {
+      step3Status = 'current';
+    }
+    
+    // Step 4: Chief Approval
+    let step4Status: 'pending' | 'current' | 'completed' | 'denied' = 'pending';
+    if (isDenied && commanderApprovalDate && !chiefApprovalDate) {
+      step4Status = 'denied';
+    } else if (chiefApprovalDate) {
+      step4Status = 'completed';
+    } else if (commanderApprovalDate && !chiefApprovalDate) {
+      step4Status = 'current';
+    }
+    
+    // Step 5: Training Scheduled
+    let step5Status: 'pending' | 'current' | 'completed' | 'denied' = 'pending';
+    if (request.scheduledDate) {
+      step5Status = 'completed';
+    } else if (isApproved || chiefApprovalDate) {
+      step5Status = 'current';
+    }
 
     const chain = [
       {
         step: 1,
         title: 'Request Submitted',
         person: requester,
-        status: 'completed',
+        status: step1Status,
         date: request.submittedDate,
-        description: `${requester?.firstName} ${requester?.lastName} submitted training request`,
+        description: `${requester?.firstName || 'Officer'} ${requester?.lastName || ''} submitted training request`,
       },
       {
         step: 2,
-        title: 'Supervisor Review',
-        person: supervisor || allUsers.find(u => u.role === 'supervisor'),
-        status: request.supervisorApprovalDate ? 'completed' : 
-                request.status === 'supervisor_review' ? 'current' :
-                request.status === 'submitted' ? 'pending' : 'completed',
-        date: request.supervisorApprovalDate,
-        description: supervisor 
-          ? `Reviewed by ${supervisor.rank} ${supervisor.lastName}`
-          : 'Awaiting supervisor review',
+        title: 'Training Coordinator Review',
+        person: trainingCoordinator || allUsers.find(u => u.role === 'training_coordinator'),
+        status: step2Status,
+        date: coordinatorApprovalDate,
+        description: coordinatorApprovalDate && trainingCoordinator
+          ? `Reviewed by ${trainingCoordinator.rank || ''} ${trainingCoordinator.lastName || 'Training Coordinator'}`
+          : 'Awaiting Training Coordinator review',
       },
       {
         step: 3,
-        title: 'Administrative Approval',
-        person: admin || allUsers.find(u => u.role === 'administrator'),
-        status: request.adminApprovalDate ? (request.status === 'denied' ? 'denied' : 'completed') :
-                request.status === 'admin_approval' ? 'current' :
-                ['submitted', 'supervisor_review'].includes(request.status) ? 'pending' :
-                request.status === 'denied' ? 'denied' : 'completed',
-        date: request.adminApprovalDate,
-        description: admin
-          ? request.status === 'denied' 
-            ? `Denied by ${admin.rank} ${admin.lastName}`
-            : `Approved by ${admin.rank} ${admin.lastName}`
-          : 'Awaiting administrative approval',
+        title: 'Shift Commander Review',
+        person: shiftCommander || allUsers.find(u => u.rank?.toLowerCase().includes('commander') || u.rank?.toLowerCase().includes('lieutenant')),
+        status: step3Status,
+        date: commanderApprovalDate,
+        description: commanderApprovalDate && shiftCommander
+          ? `Reviewed by ${shiftCommander.rank || ''} ${shiftCommander.lastName || 'Shift Commander'}`
+          : 'Awaiting Shift Commander review',
       },
       {
         step: 4,
+        title: 'Chief Approval',
+        person: chief || allUsers.find(u => u.rank?.toLowerCase().includes('chief')),
+        status: step4Status,
+        date: chiefApprovalDate,
+        description: chiefApprovalDate && chief
+          ? isDenied 
+            ? `Denied by ${chief.rank || ''} ${chief.lastName || 'Chief'}`
+            : `Approved by ${chief.rank || ''} ${chief.lastName || 'Chief'}`
+          : 'Awaiting Chief approval',
+      },
+      {
+        step: 5,
         title: 'Training Scheduled',
         person: null,
-        status: request.scheduledDate ? 'completed' : 
-                request.status === 'approved' ? 'current' : 'pending',
+        status: step5Status,
         date: request.scheduledDate,
         description: request.scheduledDate 
           ? `Training scheduled for ${formatDate(request.scheduledDate)}`
@@ -281,7 +340,7 @@ const ChainOfCommand: React.FC = () => {
                             <span className="text-lg font-bold text-slate-400">{step.step}</span>
                           )}
                         </div>
-                        {index < 3 && (
+                        {index < 4 && (
                           <div className={`w-0.5 h-16 ${
                             step.status === 'completed' ? 'bg-green-300' :
                             step.status === 'denied' ? 'bg-red-300' :
