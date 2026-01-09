@@ -59,12 +59,37 @@ export interface TrainingRequest {
   userBadge: string;
   status: RequestStatus;
   submittedDate: string;
+  
+  // Legacy approval fields
   supervisorId?: string;
   supervisorName?: string;
   supervisorApprovalDate?: string;
   adminId?: string;
   adminName?: string;
   adminApprovalDate?: string;
+  
+  // New 5-step approval fields
+  step1Id?: string;
+  step1Name?: string;
+  step1Title?: string;
+  step1ApprovalDate?: string;
+  step2Id?: string;
+  step2Name?: string;
+  step2Title?: string;
+  step2ApprovalDate?: string;
+  step3Id?: string;
+  step3Name?: string;
+  step3Title?: string;
+  step3ApprovalDate?: string;
+  step4Id?: string;
+  step4Name?: string;
+  step4Title?: string;
+  step4ApprovalDate?: string;
+  step5Id?: string;
+  step5Name?: string;
+  step5Title?: string;
+  step5ApprovalDate?: string;
+  
   scheduledDate?: string;
   notes: string;
   denialReason?: string;
@@ -196,12 +221,37 @@ export interface InternalTrainingRequest {
   attendeeNames?: string[];
   status: InternalTrainingStatus;
   submittedDate: string;
+  
+  // Legacy approval fields
   supervisorId?: string;
   supervisorName?: string;
   supervisorApprovalDate?: string;
   adminId?: string;
   adminName?: string;
   adminApprovalDate?: string;
+  
+  // New 5-step approval fields
+  step1Id?: string;
+  step1Name?: string;
+  step1Title?: string;
+  step1ApprovalDate?: string;
+  step2Id?: string;
+  step2Name?: string;
+  step2Title?: string;
+  step2ApprovalDate?: string;
+  step3Id?: string;
+  step3Name?: string;
+  step3Title?: string;
+  step3ApprovalDate?: string;
+  step4Id?: string;
+  step4Name?: string;
+  step4Title?: string;
+  step4ApprovalDate?: string;
+  step5Id?: string;
+  step5Name?: string;
+  step5Title?: string;
+  step5ApprovalDate?: string;
+  
   notes?: string;
   denialReason?: string;
   createdAt: string;
@@ -228,6 +278,8 @@ export interface ExternalTrainingRequest {
   justification: string;
   status: ExternalTrainingStatus;
   submittedDate: string;
+  
+  // Legacy approval fields
   supervisorId?: string;
   supervisorIds?: string[]; // Multiple approvers support
   supervisorName?: string;
@@ -235,6 +287,29 @@ export interface ExternalTrainingRequest {
   adminId?: string;
   adminName?: string;
   adminApprovalDate?: string;
+  
+  // New 5-step approval fields
+  step1Id?: string;
+  step1Name?: string;
+  step1Title?: string;
+  step1ApprovalDate?: string;
+  step2Id?: string;
+  step2Name?: string;
+  step2Title?: string;
+  step2ApprovalDate?: string;
+  step3Id?: string;
+  step3Name?: string;
+  step3Title?: string;
+  step3ApprovalDate?: string;
+  step4Id?: string;
+  step4Name?: string;
+  step4Title?: string;
+  step4ApprovalDate?: string;
+  step5Id?: string;
+  step5Name?: string;
+  step5Title?: string;
+  step5ApprovalDate?: string;
+  
   notes?: string;
   denialReason?: string;
   createdAt: string;
