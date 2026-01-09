@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const allUsersData = await userService.getAll();
         const approvers = allUsersData.filter(u => 
-          u.role === 'supervisor' || u.role === 'administrator'
+          u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator'
         );
         
         for (const approver of approvers) {
@@ -294,10 +294,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           trainingTitle: extUpdated.eventName || 'External Training',
           userName: extUpdated.userName || '',
           userBadge: extUpdated.userBadge || ''
-        } as TrainingRequest;
+        };
       }
     } else {
       // Update internal training request
+      console.log('Updating internal training request...');
       updatedRequest = await requestService.updateStatus(
         requestId,
         status,
@@ -369,6 +370,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setAllRequests(combinedRequests);
     }
   }, [user]);
+
   const refreshNotifications = useCallback(async () => {
     if (!user) return;
     const userNotifications = await notificationService.getByUser(user.id);
@@ -472,7 +474,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

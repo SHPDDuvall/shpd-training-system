@@ -104,7 +104,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
     try {
       // Get supervisor and accounting user IDs
       const supervisorIds = allUsers
-        .filter(u => u.role === 'supervisor' || u.role === 'administrator')
+        .filter(u => u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator')
         .map(u => u.id);
       
       const accountingIds = allUsers
@@ -166,7 +166,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
           {/* Actions */}
           <div className="px-4 pb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              {(user?.role === 'administrator' || user?.role === 'supervisor') && (
+              {(user?.role === 'administrator' || user?.role === 'supervisor' || user?.role === 'training_coordinator') && (
                 <button
                   onClick={handleGenerateNotifications}
                   disabled={isGenerating}

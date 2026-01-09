@@ -462,7 +462,7 @@ const TrainingRequestFilter: React.FC = () => {
   
   // Get supervisors list
   const supervisors = useMemo(() => {
-    return allUsers.filter(u => u.role === 'supervisor' || u.role === 'administrator');
+    return allUsers.filter(u => u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator');
   }, [allUsers]);
   
   // Open edit supervisor modal
