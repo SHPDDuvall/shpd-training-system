@@ -8,7 +8,16 @@ interface ChainOfCommandProps {
 }
 
 const ChainOfCommand: React.FC<ChainOfCommandProps> = ({ request, allUsers }) => {
+  // Debug log to help identify why it might not be showing
+  console.log('ChainOfCommand rendering for request:', request?.id, 'Users count:', allUsers?.length);
+
+  if (!request) {
+    console.warn('ChainOfCommand: No request provided');
+    return null;
+  }
+
   const getUserById = (id: string) => {
+    if (!id || !allUsers) return null;
     return allUsers.find(u => u.id === id);
   };
 
@@ -191,7 +200,7 @@ const ChainOfCommand: React.FC<ChainOfCommandProps> = ({ request, allUsers }) =>
                   {item.person ? (
                     <>
                       <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-sm shadow-sm">
-                        {item.person.firstName[0]}{item.person.lastName[0]}
+                        {(item.person.firstName?.[0] || '')}{(item.person.lastName?.[0] || '')}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800">

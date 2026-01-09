@@ -1407,7 +1407,37 @@ const Approvals: React.FC = () => {
 
               {/* Chain of Command Tracker */}
               <div className="mt-6 pt-6 border-t border-slate-200">
-                <ChainOfCommand request={selectedRequest} allUsers={allUsers} />
+                <ChainOfCommand 
+                  request={{
+                    ...selectedRequest,
+                    status: editFormData.status as any,
+                    notes: editFormData.notes,
+                    denialReason: editFormData.denialReason,
+                    scheduledDate: editFormData.scheduledDate,
+                    step1Id: editFormData.step1Id,
+                    step1ApprovalDate: editFormData.step1ApprovalDate,
+                    step2Id: editFormData.step2Id,
+                    step2ApprovalDate: editFormData.step2ApprovalDate,
+                    step3Id: editFormData.step3Id,
+                    step3ApprovalDate: editFormData.step3ApprovalDate,
+                    step4Id: editFormData.step4Id,
+                    step4ApprovalDate: editFormData.step4ApprovalDate,
+                    step5Id: editFormData.step5Id,
+                    step5ApprovalDate: editFormData.step5ApprovalDate,
+                    // Also include names and titles for the tracker to use
+                    step1Name: allUsers.find(u => u.id === editFormData.step1Id)?.firstName ? `${allUsers.find(u => u.id === editFormData.step1Id)?.firstName} ${allUsers.find(u => u.id === editFormData.step1Id)?.lastName}` : '',
+                    step1Title: allUsers.find(u => u.id === editFormData.step1Id)?.rank || '',
+                    step2Name: allUsers.find(u => u.id === editFormData.step2Id)?.firstName ? `${allUsers.find(u => u.id === editFormData.step2Id)?.firstName} ${allUsers.find(u => u.id === editFormData.step2Id)?.lastName}` : '',
+                    step2Title: allUsers.find(u => u.id === editFormData.step2Id)?.rank || '',
+                    step3Name: allUsers.find(u => u.id === editFormData.step3Id)?.firstName ? `${allUsers.find(u => u.id === editFormData.step3Id)?.firstName} ${allUsers.find(u => u.id === editFormData.step3Id)?.lastName}` : '',
+                    step3Title: allUsers.find(u => u.id === editFormData.step3Id)?.rank || '',
+                    step4Name: allUsers.find(u => u.id === editFormData.step4Id)?.firstName ? `${allUsers.find(u => u.id === editFormData.step4Id)?.firstName} ${allUsers.find(u => u.id === editFormData.step4Id)?.lastName}` : '',
+                    step4Title: allUsers.find(u => u.id === editFormData.step4Id)?.rank || '',
+                    step5Name: allUsers.find(u => u.id === editFormData.step5Id)?.firstName ? `${allUsers.find(u => u.id === editFormData.step5Id)?.firstName} ${allUsers.find(u => u.id === editFormData.step5Id)?.lastName}` : '',
+                    step5Title: allUsers.find(u => u.id === editFormData.step5Id)?.rank || '',
+                  }} 
+                  allUsers={allUsers} 
+                />
               </div>
 
               {/* Scheduled Date */}
