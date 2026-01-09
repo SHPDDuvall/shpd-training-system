@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { sendApprovalNotification, sendDenialNotification, sendGeneralEmail } from '@/lib/emailService';
 import { trainingService, certificateService, notificationService, externalTrainingService, requestService } from '@/lib/database';
+import ChainOfCommand from '@/components/ChainOfCommand';
 import { TrainingRequest, TrainingOpportunity, CustomTrainingRequest, ApprovalRank, CustomFieldValue, isSubmittedWithin30Days, getDaysUntilTraining } from '@/types';
 import { generateRequestStatusNotification } from '@/lib/notificationGenerator';
 import {
@@ -1404,8 +1405,13 @@ const Approvals: React.FC = () => {
                 })()}
               </div>
 
+              {/* Chain of Command Tracker */}
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <ChainOfCommand request={selectedRequest} allUsers={allUsers} />
+              </div>
+
               {/* Scheduled Date */}
-              <div>
+              <div className="mt-6">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Scheduled Date</label>
                 <input
                   type="date"

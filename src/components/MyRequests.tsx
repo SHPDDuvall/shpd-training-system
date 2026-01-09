@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { TrainingRequest, ChainOfCommandStep } from '@/types';
+import ChainOfCommand from '@/components/ChainOfCommand';
 import {
   CalendarIcon,
   ClockIcon,
@@ -12,7 +13,7 @@ import {
 } from '@/components/icons/Icons';
 
 const MyRequests: React.FC = () => {
-  const { userRequests } = useAuth();
+  const { userRequests, allUsers } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<TrainingRequest | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -236,48 +237,8 @@ const MyRequests: React.FC = () => {
               </div>
 
               {/* Chain of Command Timeline */}
-              <div className="mb-6">
-                <h3 className="font-semibold text-slate-800 mb-4">Approval Timeline</h3>
-                <div className="space-y-4">
-                  {getChainOfCommand(selectedRequest).map((step, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          step.status === 'approved' ? 'bg-green-100 text-green-600' :
-                          step.status === 'denied' ? 'bg-red-100 text-red-600' :
-                          step.status === 'current' ? 'bg-amber-100 text-amber-600' :
-                          'bg-slate-100 text-slate-400'
-                        }`}>
-                          {step.status === 'approved' ? <CheckIcon size={16} /> :
-                           step.status === 'denied' ? <XIcon size={16} /> :
-                           step.status === 'current' ? <ClockIcon size={16} /> :
-                           <span className="w-2 h-2 bg-slate-300 rounded-full" />}
-                        </div>
-                        {index < 3 && (
-                          <div className={`w-0.5 h-12 ${
-                            step.status === 'approved' ? 'bg-green-200' :
-                            step.status === 'denied' ? 'bg-red-200' :
-                            'bg-slate-200'
-                          }`} />
-                        )}
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <div className="font-medium text-slate-800">{step.role}</div>
-                        <div className="text-sm text-slate-600">{step.name}</div>
-                        {step.timestamp && (
-                          <div className="text-xs text-slate-400 mt-1">
-                            {formatDate(step.timestamp)}
-                          </div>
-                        )}
-                        {step.notes && (
-                          <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-sm text-red-700">
-                            {step.notes}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="mb-8">
+                <ChainOfCommand request={selectedRequest} allUsers={allUsers} />
               </div>
 
               {/* Request Details */}

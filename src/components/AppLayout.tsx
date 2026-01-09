@@ -21,7 +21,7 @@ import ExternalTrainingForm from '@/components/ExternalTrainingForm';
 import TrainingRequestFilter from '@/components/TrainingRequestFilter';
 
 const MainApp: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, allUsers } = useAuth();
   const { sidebarOpen, toggleSidebar } = useAppContext();
   const isMobile = useIsMobile();
   const [currentView, setCurrentView] = useState('dashboard');
@@ -43,7 +43,20 @@ const MainApp: React.FC = () => {
       case 'requests':
         return <MyRequests />;
       case 'chain':
-        return <ChainOfCommand />;
+        // This view is for general chain of command info, but the component needs a request.
+        // For now, we'll show a placeholder or redirect, but to fix the error, we need to pass props.
+        return (
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Chain of Command Tracker</h2>
+            <p className="text-slate-600">Please select a specific training request from "My Requests" to view its approval chain.</p>
+            <button 
+              onClick={() => setCurrentView('requests')}
+              className="mt-4 px-6 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold rounded-lg transition-colors"
+            >
+              Go to My Requests
+            </button>
+          </div>
+        );
       case 'profile':
         return <Profile />;
       case 'approvals':
