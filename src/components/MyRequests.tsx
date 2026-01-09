@@ -13,13 +13,16 @@ import {
 } from '@/components/icons/Icons';
 
 const MyRequests: React.FC = () => {
-  const { userRequests, allUsers } = useAuth();
+  const { user, userRequests, allRequests, allUsers } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<TrainingRequest | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
+  const isAdminOrCoordinator = user?.role === 'administrator' || user?.role === 'training_coordinator';
+  const displayRequests = isAdminOrCoordinator ? allRequests : userRequests;
+
   const filteredRequests = filterStatus === 'all'
-    ? userRequests
-    : userRequests.filter(r => r.status === filterStatus);
+    ? displayRequests
+    : displayRequests.filter(r => r.status === filterStatus);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -107,8 +110,14 @@ const MyRequests: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">My Requests</h1>
-          <p className="text-slate-600 mt-1">Track and manage your training requests</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isAdminOrCoordinator ? 'All Training Requests' : 'My Requests'}
+          </h1>
+          <p className="text-slate-600 mt-1">
+            {isAdminOrCoordinator 
+              ? 'Monitor and manage all department training requests' 
+              : 'Track and manage your training requests'}
+          </p>
         </div>
 
         <select
@@ -125,24 +134,24 @@ const MyRequests: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-          <div className="text-2xl font-bold text-slate-800">{userRequests.length}</div>
+          <div className="text-2xl font-bold text-slate-800">{displayRequests.length}</div>
           <div className="text-sm text-slate-600">Total Requests</div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
           <div className="text-2xl font-bold text-blue-600">
-            {userRequests.filter(r => ['submitted', 'supervisor_review', 'admin_approval'].includes(r.status)).length}
+            {displayRequests.filter(r => ['submitted', 'supervisor_review', 'admin_approval'].includes(r.status)).length}
           </div>
           <div className="text-sm text-slate-600">Pending</div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
           <div className="text-2xl font-bold text-green-600">
-            {userRequests.filter(r => r.status === 'approved' || r.status === 'scheduled').length}
+            {displayRequests.filter(r => r.status === 'approved' || r.status === 'scheduled').length}
           </div>
           <div className="text-sm text-slate-600">Approved</div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
           <div className="text-2xl font-bold text-amber-600">
-            {userRequests.filter(r => r.status === 'completed').length}
+            {displayRequests.filter(r => r.status === 'completed').length}
           </div>
           <div className="text-sm text-slate-600">Completed</div>
         </div>
