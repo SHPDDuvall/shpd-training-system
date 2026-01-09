@@ -150,6 +150,9 @@ const Approvals: React.FC = () => {
     chiefApprovalDate: string;
     scheduledDate: string;
     denialReason: string;
+    trainingCoordinatorId: string;
+    shiftCommanderId: string;
+    chiefId: string;
   }>({
     status: '',
     notes: '',
@@ -158,6 +161,9 @@ const Approvals: React.FC = () => {
     chiefApprovalDate: '',
     scheduledDate: '',
     denialReason: '',
+    trainingCoordinatorId: '',
+    shiftCommanderId: '',
+    chiefId: '',
   });
 
   useEffect(() => {
@@ -279,6 +285,9 @@ const Approvals: React.FC = () => {
       chiefApprovalDate: originalData.chief_approval_date || '',
       scheduledDate: request.scheduledDate || '',
       denialReason: request.denialReason || '',
+      trainingCoordinatorId: originalData.supervisor_id || originalData.training_coordinator_id || '',
+      shiftCommanderId: originalData.commander_id || originalData.shift_commander_id || '',
+      chiefId: originalData.chief_id || '',
     });
     setShowEditModal(true);
   };
@@ -286,12 +295,30 @@ const Approvals: React.FC = () => {
   const confirmEdit = async () => {
     if (!selectedRequest || !user) return;
 
+    // Validate that same person is not assigned to multiple steps
+    const hasDuplicateAssignment = 
+      (editFormData.trainingCoordinatorId && editFormData.shiftCommanderId && editFormData.trainingCoordinatorId === editFormData.shiftCommanderId) ||
+      (editFormData.trainingCoordinatorId && editFormData.chiefId && editFormData.trainingCoordinatorId === editFormData.chiefId) ||
+      (editFormData.shiftCommanderId && editFormData.chiefId && editFormData.shiftCommanderId === editFormData.chiefId);
+
+    if (hasDuplicateAssignment) {
+      setToastMessage('Error: The same person cannot be assigned to multiple steps in the chain of command.');
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 5000);
+      return;
+    }
+
     setIsProcessing(true);
     try {
       // Check if this is an external training request
       const hasEventName = 'eventName' in selectedRequest;
       const hasExternalFields = 'eventLocation' in selectedRequest || 'eventDate' in selectedRequest || 'estimatedCost' in selectedRequest;
       const isExternalRequest = hasEventName || hasExternalFields;
+
+      // Get approver names
+      const trainingCoordinator = allUsers.find(u => u.id === editFormData.trainingCoordinatorId);
+      const shiftCommander = allUsers.find(u => u.id === editFormData.shiftCommanderId);
+      const chief = allUsers.find(u => u.id === editFormData.chiefId);
 
       const updateData: Record<string, unknown> = {
         status: editFormData.status,
@@ -301,6 +328,13 @@ const Approvals: React.FC = () => {
         supervisor_approval_date: editFormData.supervisorApprovalDate || null,
         commander_approval_date: editFormData.commanderApprovalDate || null,
         chief_approval_date: editFormData.chiefApprovalDate || null,
+        // Approver assignments
+        supervisor_id: editFormData.trainingCoordinatorId || null,
+        supervisor_name: trainingCoordinator ? `${trainingCoordinator.firstName} ${trainingCoordinator.lastName}` : null,
+        commander_id: editFormData.shiftCommanderId || null,
+        commander_name: shiftCommander ? `${shiftCommander.firstName} ${shiftCommander.lastName}` : null,
+        chief_id: editFormData.chiefId || null,
+        chief_name: chief ? `${chief.firstName} ${chief.lastName}` : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -1260,6 +1294,90 @@ const Approvals: React.FC = () => {
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              {/* Approver Assignments */}
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h3 className="text-sm font-semibold text-amber-800 mb-3">Chain of Command Assignments</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Training Coordinator</label>
+                    <select
+                      value={editFormData.trainingCoordinatorId}
+                      onChange={(e) => setEditFormData({ ...editFormData, trainingCoordinatorId: e.target.value })}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        editFormData.trainingCoordinatorId && 
+                        (editFormData.trainingCoordinatorId === editFormData.shiftCommanderId || 
+                         editFormData.trainingCoordinatorId === editFormData.chiefId)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-slate-300'
+                      }`}
+                    >
+                      <option value="">Select Training Coordinator</option>
+                      {allUsers
+                        .filter(u => u.role === 'training_coordinator' || u.role === 'admin' || u.role === 'supervisor')
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.firstName} {u.lastName} ({u.badgeNumber})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Shift Commander</label>
+                    <select
+                      value={editFormData.shiftCommanderId}
+                      onChange={(e) => setEditFormData({ ...editFormData, shiftCommanderId: e.target.value })}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        editFormData.shiftCommanderId && 
+                        (editFormData.shiftCommanderId === editFormData.trainingCoordinatorId || 
+                         editFormData.shiftCommanderId === editFormData.chiefId)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-slate-300'
+                      }`}
+                    >
+                      <option value="">Select Shift Commander</option>
+                      {allUsers
+                        .filter(u => u.role === 'commander' || u.role === 'admin' || u.role === 'supervisor')
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.firstName} {u.lastName} ({u.badgeNumber})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Chief</label>
+                    <select
+                      value={editFormData.chiefId}
+                      onChange={(e) => setEditFormData({ ...editFormData, chiefId: e.target.value })}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        editFormData.chiefId && 
+                        (editFormData.chiefId === editFormData.trainingCoordinatorId || 
+                         editFormData.chiefId === editFormData.shiftCommanderId)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-slate-300'
+                      }`}
+                    >
+                      <option value="">Select Chief</option>
+                      {allUsers
+                        .filter(u => u.role === 'chief' || u.role === 'admin')
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.firstName} {u.lastName} ({u.badgeNumber})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+                {/* Duplicate assignment warning */}
+                {(editFormData.trainingCoordinatorId && editFormData.shiftCommanderId && editFormData.trainingCoordinatorId === editFormData.shiftCommanderId) ||
+                 (editFormData.trainingCoordinatorId && editFormData.chiefId && editFormData.trainingCoordinatorId === editFormData.chiefId) ||
+                 (editFormData.shiftCommanderId && editFormData.chiefId && editFormData.shiftCommanderId === editFormData.chiefId) ? (
+                  <p className="mt-2 text-sm text-red-600 font-medium">
+                    ⚠️ Warning: The same person cannot be assigned to multiple steps in the chain of command.
+                  </p>
+                ) : null}
               </div>
 
               {/* Scheduled Date */}
