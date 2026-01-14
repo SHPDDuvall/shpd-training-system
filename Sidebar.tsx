@@ -69,6 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, on
 
   const hasAccess = (roles?: string[]) => {
     if (!roles || !user) return true;
+    
+    // Special case for Chief: they are an 'officer' but should see 'supervisor' items
+    if (user.rank.includes('Chief') && roles.includes('supervisor')) {
+      return true;
+    }
+    
     return roles.includes(user.role);
   };
 

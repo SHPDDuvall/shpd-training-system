@@ -118,8 +118,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
       if (isCurrentApprover) return true;
 
-      // Legacy supervisor check
-      if (user.role === 'supervisor') {
+      // Legacy supervisor check (also allow Chief to see their assigned legacy requests)
+      if (user.role === 'supervisor' || user.rank.includes('Chief')) {
         const requestingUser = allUsers.find(u => u.id === r.userId);
         return requestingUser?.supervisorId === user.id && (r.status === 'submitted' || r.status === 'supervisor_review');
       }
