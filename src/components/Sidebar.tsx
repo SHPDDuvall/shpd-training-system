@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   { id: 'internal-training', label: 'Internal Training', icon: InternalTrainingIcon },
   { id: 'external-training', label: 'External Training', icon: ExternalTrainingIcon },
   { id: 'requests', label: 'My Requests', icon: RequestIcon },
-  { id: 'chain', label: 'Chain of Command', icon: ChainIcon },
+  { id: 'chain', label: 'Chain of Command', icon: ChainIcon, roles: ['administrator', 'training_coordinator'] },
   { id: 'profile', label: 'My Profile', icon: ProfileIcon },
 ];
 
