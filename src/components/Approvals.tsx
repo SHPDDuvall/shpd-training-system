@@ -258,6 +258,17 @@ const Approvals: React.FC = () => {
   });
 
   // Filter standard requests based on user role
+  // DEBUG: Log all requests and user info
+  console.log('DEBUG Approvals - user:', user?.id, user?.role, user?.badgeNumber);
+  console.log('DEBUG Approvals - allRequests count:', allRequests.length);
+  if (allRequests.length > 0) {
+    console.log('DEBUG Approvals - sample request step1Id:', allRequests[0]?.step1Id);
+  }
+  
+  // Log requests where current user is step1Id
+  const userStep1Requests = allRequests.filter(r => r.step1Id === user?.id);
+  console.log('DEBUG Approvals - requests where user is step1Id:', userStep1Requests.length);
+
   const pendingRequests = allRequests.filter(r => {
     // Skip already completed requests
     if (r.status === 'approved' || r.status === 'denied' || r.status === 'completed') {
