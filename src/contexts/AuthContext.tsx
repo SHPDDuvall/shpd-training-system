@@ -356,8 +356,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         type: notificationType,
         link: '/requests',
       });
+
+      // If approved by a supervisor, notify the next person in the chain
+      if (status === 'supervisor_review' || status === 'admin_approval') {
+        const nextApproverId = status === 'supervisor_review' ? updatedRequest.step2Id : updatedRequest.step3Id;
+        if (nextApproverId) {
+          const nextApprover = allUsers.find(u => u.id === nextApproverId);
+          if (nextApprover) {
+            // Create in-app notification for next approver
+            await notificationService.create({
+              userId: nextApproverId,
+              title: 'New Training Request for Review',
+              message: `${updatedRequest.userName} has a training request for "${updatedRequest.trainingTitle}" that now requires your review.`,
+              type: 'info',
+              link: '/approvals',
+            });
+
+            // Send email to next approver
+            try {
+              await sendGeneralEmail({
+                type: 'general',
+                recipientEmail: nextApprover.email,
+                recipientName: `${nextApprover.firstName} ${nextApprover.lastName}`,
+                subject: `Training Request Requires Your Approval: ${updatedRequest.trainingTitle}`,
+                body: `A training request has been forwarded to you and requires YOUR review.\n\nRequester: ${updatedRequest.userName}\nTraining: ${updatedRequest.trainingTitle}\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
+                senderName: 'SHPD Training System',
+              });
+            } catch (emailError) {
+              console.error('Error sending email to next approver:', emailError);
+            }
+          }
+        }
+      }
     }
-  }, [user, allRequests]);
+  }, [user, allRequests, allUsers]);
 
   const refreshRequests = useCallback(async () => {
     if (!user) return;

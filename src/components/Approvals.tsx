@@ -260,12 +260,18 @@ const Approvals: React.FC = () => {
   // Filter standard requests based on user role
   const pendingRequests = allRequests.filter(r => {
     if (user?.role === 'supervisor') {
-      // Get the user who submitted the request
+      // Show requests where the user is explicitly assigned as an approver in the 5-step chain
+      const isAssignedApprover = 
+        (r.status === 'submitted' && r.step1Id === user.id) ||
+        (r.status === 'supervisor_review' && r.step2Id === user.id) ||
+        (r.status === 'admin_approval' && r.step3Id === user.id);
+
+      // Fallback: Show requests from officers this supervisor oversees (legacy support)
       const requestingUser = allUsers.find(u => u.id === r.userId);
-      // Show requests from officers this supervisor oversees
       const isMySupervisee = requestingUser?.supervisorId === user.id;
       const isInSupervisorStatus = r.status === 'submitted' || r.status === 'supervisor_review';
-      return isMySupervisee && isInSupervisorStatus;
+      
+      return isAssignedApprover || (isMySupervisee && isInSupervisorStatus);
     }
     if (user?.role === 'administrator' || user?.role === 'training_coordinator') {
       // Administrators and Training Coordinators see ALL pending requests at any status
@@ -488,7 +494,16 @@ const Approvals: React.FC = () => {
       
       if (actionType === 'approve') {
         if (user.role === 'supervisor') {
-          newStatus = 'admin_approval';
+          // Determine next status based on current status and 5-step chain
+          if (selectedRequest.status === 'submitted') {
+            newStatus = 'supervisor_review';
+          } else if (selectedRequest.status === 'supervisor_review') {
+            newStatus = 'admin_approval';
+          } else if (selectedRequest.status === 'admin_approval') {
+            newStatus = 'approved';
+          } else {
+            newStatus = 'admin_approval'; // Default fallback
+          }
         } else {
           // Administrator and Training Coordinator can fully approve
           newStatus = 'approved';
