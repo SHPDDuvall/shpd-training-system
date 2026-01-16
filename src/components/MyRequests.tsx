@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { TrainingRequest, ChainOfCommandStep } from '@/types';
+import { TrainingRequest, ChainOfCommandStep, User } from '@/types';
 import ChainOfCommand from '@/components/ChainOfCommand';
 import {
   CalendarIcon,
@@ -10,12 +10,75 @@ import {
   AlertIcon,
   ChevronRightIcon,
   RequestIcon,
+  EditIcon,
 } from '@/components/icons/Icons';
 
 const MyRequests: React.FC = () => {
-  const { user, userRequests, allRequests, allUsers } = useAuth();
+  const { user, userRequests, allRequests, allUsers, updateRequest } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<TrainingRequest | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState<any>({});
+  const [supervisors, setSupervisors] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (allUsers) {
+      const availableSupervisors = allUsers.filter(u => 
+        u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator'
+      );
+      setSupervisors(availableSupervisors);
+    }
+  }, [allUsers]);
+
+  const handleEditClick = () => {
+    if (!selectedRequest) return;
+    
+    const isExternal = (selectedRequest as any).eventName !== undefined;
+    
+    if (isExternal) {
+      setEditForm({
+        eventName: (selectedRequest as any).eventName,
+        organization: (selectedRequest as any).organization,
+        startDate: (selectedRequest as any).startDate,
+        endDate: (selectedRequest as any).endDate,
+        location: selectedRequest.location,
+        costEstimate: (selectedRequest as any).costEstimate,
+        justification: (selectedRequest as any).justification,
+        notes: selectedRequest.notes,
+        supervisorId: selectedRequest.supervisorId,
+      });
+    } else {
+      setEditForm({
+        courseName: (selectedRequest as any).courseName,
+        trainingDate: (selectedRequest as any).trainingDate,
+        location: selectedRequest.location,
+        instructor: (selectedRequest as any).instructor,
+        attendees: (selectedRequest as any).attendees || [],
+        notes: selectedRequest.notes,
+        supervisorId: selectedRequest.supervisorId,
+      });
+    }
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest) return;
+
+    setIsSubmitting(true);
+    try {
+      const success = await updateRequest(selectedRequest.id, editForm);
+      if (success) {
+        setIsEditing(false);
+        setSelectedRequest(null);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const isAdminOrCoordinator = user?.role === 'administrator' || user?.role === 'training_coordinator';
   const displayRequests = isAdminOrCoordinator ? allRequests : userRequests;
@@ -211,6 +274,175 @@ const MyRequests: React.FC = () => {
         )}
       </div>
 
+      {/* Edit Modal */}
+      {isEditing && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800">Edit Training Request</h2>
+              <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <XIcon size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              {(selectedRequest as any).eventName !== undefined ? (
+                // External Training Fields
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.eventName}
+                      onChange={e => setEditForm({...editForm, eventName: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Organization</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.organization}
+                      onChange={e => setEditForm({...editForm, organization: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={editForm.startDate}
+                        onChange={e => setEditForm({...editForm, startDate: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={editForm.endDate}
+                        onChange={e => setEditForm({...editForm, endDate: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Estimated Cost</label>
+                    <input
+                      type="number"
+                      required
+                      value={editForm.costEstimate}
+                      onChange={e => setEditForm({...editForm, costEstimate: parseFloat(e.target.value)})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Justification</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={editForm.justification}
+                      onChange={e => setEditForm({...editForm, justification: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                // Internal Training Fields
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Course Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.courseName}
+                      onChange={e => setEditForm({...editForm, courseName: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Training Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.trainingDate}
+                      onChange={e => setEditForm({...editForm, trainingDate: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Instructor</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.instructor}
+                      onChange={e => setEditForm({...editForm, instructor: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </>
+              )}
+              
+              {/* Common Fields */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.location}
+                  onChange={e => setEditForm({...editForm, location: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Supervisor/Approver</label>
+                <select
+                  required
+                  value={editForm.supervisorId}
+                  onChange={e => setEditForm({...editForm, supervisorId: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Select Approver</option>
+                  {supervisors.map(s => (
+                    <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  value={editForm.notes}
+                  onChange={e => setEditForm({...editForm, notes: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Request Detail Modal */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -278,10 +510,19 @@ const MyRequests: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-200">
+            <div className="p-6 border-t border-slate-200 flex gap-3">
+              {selectedRequest.status === 'submitted' && selectedRequest.userId === user?.id && (
+                <button
+                  onClick={handleEditClick}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  <EditIcon size={18} />
+                  Edit Request
+                </button>
+              )}
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="w-full px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors"
+                className={`${selectedRequest.status === 'submitted' && selectedRequest.userId === user?.id ? 'flex-1' : 'w-full'} px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors`}
               >
                 Close
               </button>

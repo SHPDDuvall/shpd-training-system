@@ -18,6 +18,7 @@ interface AuthContextType {
   allRequests: TrainingRequest[];
   addRequest: (trainingId: string, notes?: string) => Promise<TrainingRequest | null>;
   updateRequestStatus: (requestId: string, status: TrainingRequest['status'], notes?: string) => Promise<void>;
+  updateRequest: (requestId: string, updates: any) => Promise<boolean>;
   refreshRequests: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
   allUsers: User[];
@@ -234,6 +235,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return newRequest;
   }, [user]);
+
+  const updateRequest = useCallback(async (requestId: string, updates: any): Promise<boolean> => {
+    if (!user) return false;
+
+    const existingRequest = allRequests.find(r => r.id === requestId);
+    const isExternalRequest = existingRequest && (existingRequest as any).eventName !== undefined;
+
+    let success = false;
+    if (isExternalRequest) {
+      const updated = await externalTrainingService.update(requestId, updates);
+      success = !!updated;
+    } else {
+      const updated = await internalTrainingService.update(requestId, updates);
+      success = !!updated;
+    }
+
+    if (success) {
+      await refreshRequests();
+    }
+    return success;
+  }, [user, allRequests]);
 
   const updateRequestStatus = useCallback(async (
     requestId: string, 
@@ -456,6 +478,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       allRequests,
       addRequest,
       updateRequestStatus,
+      updateRequest,
       refreshRequests,
       refreshNotifications,
       allUsers,

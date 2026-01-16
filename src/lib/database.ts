@@ -1466,6 +1466,38 @@ export const internalTrainingService = {
     return mapInternalTrainingFromDb(data);
   },
 
+  async update(id: string, updates: Partial<InternalTrainingRequest>): Promise<InternalTrainingRequest | null> {
+    const dbUpdates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.courseName !== undefined) dbUpdates.course_name = updates.courseName;
+    if (updates.trainingDate !== undefined) dbUpdates.training_date = updates.trainingDate;
+    if (updates.location !== undefined) dbUpdates.location = updates.location;
+    if (updates.instructor !== undefined) dbUpdates.instructor = updates.instructor;
+    if (updates.attendees !== undefined) dbUpdates.attendees = updates.attendees;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId;
+
+    const { data, error } = await supabase
+      .from('internal_training_requests')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select(`
+        *,
+        user:users!user_id(id, badge_number, first_name, last_name),
+        supervisor:users!supervisor_id(id, first_name, last_name),
+        admin:users!admin_id(id, first_name, last_name)
+      `)
+      .single();
+
+    if (error || !data) {
+      console.error('Error updating internal training request:', error);
+      return null;
+    }
+    return mapInternalTrainingFromDb(data);
+  },
+
   async delete(id: string): Promise<boolean> {
     const { error } = await supabase
       .from('internal_training_requests')
@@ -1617,6 +1649,40 @@ export const externalTrainingService = {
       .single();
 
     if (error || !data) return null;
+    return mapExternalTrainingFromDb(data);
+  },
+
+  async update(id: string, updates: Partial<ExternalTrainingRequest>): Promise<ExternalTrainingRequest | null> {
+    const dbUpdates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.eventName !== undefined) dbUpdates.event_name = updates.eventName;
+    if (updates.organization !== undefined) dbUpdates.organization = updates.organization;
+    if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
+    if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate;
+    if (updates.location !== undefined) dbUpdates.location = updates.location;
+    if (updates.costEstimate !== undefined) dbUpdates.cost_estimate = updates.costEstimate;
+    if (updates.justification !== undefined) dbUpdates.justification = updates.justification;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.supervisorId !== undefined) dbUpdates.supervisor_id = updates.supervisorId;
+
+    const { data, error } = await supabase
+      .from('external_training_requests')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select(`
+        *,
+        user:users!user_id(id, badge_number, first_name, last_name),
+        supervisor:users!supervisor_id(id, first_name, last_name),
+        admin:users!admin_id(id, first_name, last_name)
+      `)
+      .single();
+
+    if (error || !data) {
+      console.error('Error updating external training request:', error);
+      return null;
+    }
     return mapExternalTrainingFromDb(data);
   },
 
