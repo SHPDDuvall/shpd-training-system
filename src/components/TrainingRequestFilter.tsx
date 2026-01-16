@@ -25,7 +25,10 @@ import {
   ChevronDownIcon,
   EditIcon,
   EyeIcon,
+  AlertIcon,
 } from '@/components/icons/Icons';
+import { externalTrainingService, internalTrainingService, notificationService } from '@/lib/database';
+import { sendGeneralEmail, sendApproverNotification } from '@/lib/emailService';
 
 type RequestType = 'all' | 'standard' | 'internal' | 'external';
 type StatusFilter = 'all' | 'pending' | 'approved' | 'denied' | 'completed';
@@ -82,6 +85,18 @@ const TrainingRequestFilter: React.FC = () => {
   const [viewingRequest, setViewingRequest] = useState<CombinedRequest | null>(null);
   const [userDocuments, setUserDocuments] = useState<{id: string; title: string; fileName: string; fileUrl: string; documentType: string}[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  
+  // Approval action states
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'deny' | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  
+  // Edit request modal states
+  const [showEditRequestModal, setShowEditRequestModal] = useState(false);
+  const [editRequestData, setEditRequestData] = useState<Record<string, any>>({});
   
   // Fetch all data
   const fetchData = async () => {
@@ -507,6 +522,270 @@ const TrainingRequestFilter: React.FC = () => {
     } catch (err) {
       console.error('Error saving supervisor assignment:', err);
       setSaveError('Failed to save. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Check if user can approve/deny this request
+  const canApproveRequest = (request: CombinedRequest): boolean => {
+    if (!user) return false;
+    
+    // Admins, Training Coordinators, and Chiefs can always approve
+    if (user.role === 'administrator' || user.role === 'training_coordinator' || user.rank === 'Chief') {
+      return true;
+    }
+    
+    // Check if user is the assigned supervisor
+    if (request.supervisorId === user.id) {
+      return true;
+    }
+    
+    // Check if user is assigned to any step in the approval chain
+    const originalData = request.originalData as any;
+    if (originalData.step1Id === user.id || 
+        originalData.step2Id === user.id || 
+        originalData.step3Id === user.id || 
+        originalData.step4Id === user.id || 
+        originalData.step5Id === user.id) {
+      return true;
+    }
+    
+    // Supervisors can approve requests from their supervisees
+    if (user.role === 'supervisor') {
+      const requester = allUsers.find(u => u.id === request.userId);
+      if (requester && requester.supervisorId === user.id) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  // Check if user can edit this request (owner with pending status)
+  const canEditRequest = (request: CombinedRequest): boolean => {
+    if (!user) return false;
+    
+    // Owner can edit if status is pending/submitted
+    if (request.userId === user.id && (request.status === 'pending' || request.status === 'submitted')) {
+      return true;
+    }
+    
+    // Admins and Training Coordinators can always edit
+    if (user.role === 'administrator' || user.role === 'training_coordinator') {
+      return true;
+    }
+    
+    return false;
+  };
+  
+  // Handle approval action
+  const handleApprovalAction = (action: 'approve' | 'deny') => {
+    setApprovalAction(action);
+    setApprovalNotes('');
+    setShowApprovalModal(true);
+  };
+  
+  // Confirm approval action
+  const confirmApprovalAction = async () => {
+    if (!viewingRequest || !user || !approvalAction) return;
+    
+    setIsProcessingApproval(true);
+    try {
+      let newStatus: string;
+      
+      if (approvalAction === 'approve') {
+        // Determine next status based on current status and role
+        if (user.role === 'administrator' || user.role === 'training_coordinator' || user.rank === 'Chief') {
+          newStatus = 'approved';
+        } else if (viewingRequest.status === 'pending' || viewingRequest.status === 'submitted') {
+          newStatus = 'supervisor_review';
+        } else if (viewingRequest.status === 'supervisor_review') {
+          newStatus = 'admin_approval';
+        } else if (viewingRequest.status === 'admin_approval') {
+          newStatus = 'approved';
+        } else {
+          newStatus = 'approved';
+        }
+      } else {
+        newStatus = 'denied';
+      }
+      
+      // Determine which table to update
+      let tableName = '';
+      if (viewingRequest.type === 'external') {
+        tableName = 'external_training_requests';
+      } else if (viewingRequest.type === 'internal') {
+        tableName = 'internal_training_requests';
+      } else {
+        tableName = 'training_requests';
+      }
+      
+      // Build update data
+      const updateData: Record<string, any> = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (approvalAction === 'deny') {
+        updateData.denial_reason = approvalNotes || 'No reason provided';
+      } else {
+        updateData.notes = approvalNotes || null;
+      }
+      
+      // Add approval tracking based on current status
+      if (approvalAction === 'approve') {
+        if (viewingRequest.status === 'pending' || viewingRequest.status === 'submitted') {
+          updateData.step1_approval_date = new Date().toISOString();
+          updateData.supervisor_approval_date = new Date().toISOString();
+        } else if (viewingRequest.status === 'supervisor_review') {
+          updateData.step2_approval_date = new Date().toISOString();
+        } else if (viewingRequest.status === 'admin_approval') {
+          updateData.step3_approval_date = new Date().toISOString();
+        }
+      }
+      
+      const { error } = await supabase
+        .from(tableName)
+        .update(updateData)
+        .eq('id', viewingRequest.id);
+      
+      if (error) throw error;
+      
+      // Send email notification for denial
+      if (approvalAction === 'deny') {
+        const requester = allUsers.find(u => u.id === viewingRequest.userId);
+        if (requester && requester.email) {
+          try {
+            await sendGeneralEmail({
+              type: 'general',
+              recipientEmail: requester.email,
+              recipientName: `${requester.firstName} ${requester.lastName}`,
+              subject: `Training Request Denied: ${viewingRequest.title}`,
+              body: `Your training request for "${viewingRequest.title}" has been denied.\n\nReason: ${approvalNotes || 'No reason provided'}\n\nDenied by: ${user.firstName} ${user.lastName}\n\nIf you have questions about this decision, please contact your supervisor.`,
+              senderName: 'Training Management System',
+            });
+          } catch (emailError) {
+            console.error('Failed to send denial email:', emailError);
+          }
+        }
+      }
+      
+      // Create notification for requester
+      try {
+        await notificationService.create({
+          userId: viewingRequest.userId,
+          title: approvalAction === 'approve' ? 'Request Approved' : 'Request Denied',
+          message: approvalAction === 'approve' 
+            ? `Your training request for "${viewingRequest.title}" has been ${newStatus === 'approved' ? 'fully approved' : 'forwarded to the next approver'}.`
+            : `Your training request for "${viewingRequest.title}" has been denied. Reason: ${approvalNotes || 'No reason provided'}`,
+          type: approvalAction === 'approve' ? 'approval' : 'denial',
+          relatedId: viewingRequest.id,
+        });
+      } catch (notifError) {
+        console.error('Failed to create notification:', notifError);
+      }
+      
+      // Close modals and show success
+      setShowApprovalModal(false);
+      setShowDetailsModal(false);
+      setViewingRequest(null);
+      setApprovalNotes('');
+      
+      setToastMessage(approvalAction === 'approve' 
+        ? (newStatus === 'approved' ? 'Request fully approved!' : 'Request approved and forwarded to next approver!')
+        : 'Request denied');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      
+      // Refresh data
+      await fetchData();
+    } catch (err) {
+      console.error('Error processing approval:', err);
+      setToastMessage('Failed to process action. Please try again.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setIsProcessingApproval(false);
+    }
+  };
+  
+  // Open edit request modal
+  const openEditRequestModal = () => {
+    if (!viewingRequest) return;
+    
+    const originalData = viewingRequest.originalData as any;
+    setEditRequestData({
+      title: viewingRequest.title,
+      location: viewingRequest.location || originalData.location || '',
+      trainingDate: viewingRequest.trainingDate || originalData.startDate || originalData.trainingDate || '',
+      justification: originalData.justification || '',
+      notes: originalData.notes || '',
+      costEstimate: originalData.costEstimate || 0,
+    });
+    setShowEditRequestModal(true);
+  };
+  
+  // Save edited request
+  const saveEditedRequest = async () => {
+    if (!viewingRequest) return;
+    
+    setIsSaving(true);
+    try {
+      let tableName = '';
+      let updateData: Record<string, any> = {};
+      
+      if (viewingRequest.type === 'external') {
+        tableName = 'external_training_requests';
+        updateData = {
+          event_name: editRequestData.title,
+          location: editRequestData.location,
+          start_date: editRequestData.trainingDate,
+          justification: editRequestData.justification,
+          notes: editRequestData.notes,
+          cost_estimate: editRequestData.costEstimate,
+          updated_at: new Date().toISOString(),
+        };
+      } else if (viewingRequest.type === 'internal') {
+        tableName = 'internal_training_requests';
+        updateData = {
+          course_name: editRequestData.title,
+          location: editRequestData.location,
+          training_date: editRequestData.trainingDate,
+          notes: editRequestData.notes,
+          updated_at: new Date().toISOString(),
+        };
+      } else {
+        tableName = 'training_requests';
+        updateData = {
+          training_title: editRequestData.title,
+          scheduled_date: editRequestData.trainingDate,
+          notes: editRequestData.notes,
+          updated_at: new Date().toISOString(),
+        };
+      }
+      
+      const { error } = await supabase
+        .from(tableName)
+        .update(updateData)
+        .eq('id', viewingRequest.id);
+      
+      if (error) throw error;
+      
+      setShowEditRequestModal(false);
+      setShowDetailsModal(false);
+      setViewingRequest(null);
+      
+      setToastMessage('Request updated successfully!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      
+      await fetchData();
+    } catch (err) {
+      console.error('Error saving request:', err);
+      setToastMessage('Failed to save changes. Please try again.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } finally {
       setIsSaving(false);
     }
@@ -1091,16 +1370,53 @@ const TrainingRequestFilter: React.FC = () => {
               })()}
             </div>
             
-            <div className="p-6 border-t border-slate-200 flex justify-end sticky bottom-0 bg-white">
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setViewingRequest(null);
-                }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
-              >
-                Close
-              </button>
+            {/* Action Buttons */}
+            <div className="p-6 border-t border-slate-200 sticky bottom-0 bg-white">
+              {/* Show approval buttons if user can approve and request is not already approved/denied */}
+              {canApproveRequest(viewingRequest) && !['approved', 'denied', 'completed'].includes(viewingRequest.status) ? (
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Approve Button */}
+                  <button
+                    onClick={() => handleApprovalAction('approve')}
+                    className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <CheckIcon size={20} />
+                    Approve
+                  </button>
+                  
+                  {/* Deny Button */}
+                  <button
+                    onClick={() => handleApprovalAction('deny')}
+                    className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <XIcon size={20} />
+                    Deny
+                  </button>
+                  
+                  {/* Edit Request Button */}
+                  {canEditRequest(viewingRequest) && (
+                    <button
+                      onClick={openEditRequestModal}
+                      className="flex-1 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <EditIcon size={20} />
+                      Edit Request
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setViewingRequest(null);
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1179,6 +1495,226 @@ const TrainingRequestFilter: React.FC = () => {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Approval Confirmation Modal */}
+      {showApprovalModal && viewingRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">
+                {approvalAction === 'approve' ? 'Approve Request' : 'Deny Request'}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                {approvalAction === 'approve' 
+                  ? 'Add any notes and confirm approval' 
+                  : 'Please provide a reason for denial'}
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-slate-800">{viewingRequest.title}</div>
+                <div className="text-sm text-slate-600 mt-1">
+                  Submitted by: {viewingRequest.userName} (#{viewingRequest.userBadge})
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  {approvalAction === 'approve' ? 'Notes (optional)' : 'Reason for Denial'}
+                  {approvalAction === 'deny' && <span className="text-red-500"> *</span>}
+                </label>
+                <textarea
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors resize-none"
+                  placeholder={approvalAction === 'approve' ? 'Add any notes...' : 'Enter reason for denial...'}
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowApprovalModal(false);
+                  setApprovalAction(null);
+                  setApprovalNotes('');
+                }}
+                className="px-4 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+                disabled={isProcessingApproval}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApprovalAction}
+                disabled={isProcessingApproval || (approvalAction === 'deny' && !approvalNotes.trim())}
+                className={`px-4 py-2 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                  approvalAction === 'approve' 
+                    ? 'bg-green-500 hover:bg-green-600' 
+                    : 'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                {isProcessingApproval ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {approvalAction === 'approve' ? <CheckIcon size={16} /> : <XIcon size={16} />}
+                    {approvalAction === 'approve' ? 'Confirm Approval' : 'Confirm Denial'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Edit Request Modal */}
+      {showEditRequestModal && viewingRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">Edit Request</h3>
+              <p className="text-sm text-slate-600 mt-1">Modify the request details</p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={editRequestData.title || ''}
+                  onChange={(e) => setEditRequestData({...editRequestData, title: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+              </div>
+              
+              {viewingRequest.type === 'external' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+                    <input
+                      type="text"
+                      value={editRequestData.location || ''}
+                      onChange={(e) => setEditRequestData({...editRequestData, location: e.target.value})}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Training Date</label>
+                    <input
+                      type="date"
+                      value={editRequestData.trainingDate?.split('T')[0] || ''}
+                      onChange={(e) => setEditRequestData({...editRequestData, trainingDate: e.target.value})}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Cost Estimate ($)</label>
+                    <input
+                      type="number"
+                      value={editRequestData.costEstimate || 0}
+                      onChange={(e) => setEditRequestData({...editRequestData, costEstimate: parseFloat(e.target.value) || 0})}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Justification</label>
+                    <textarea
+                      value={editRequestData.justification || ''}
+                      onChange={(e) => setEditRequestData({...editRequestData, justification: e.target.value})}
+                      rows={3}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                    />
+                  </div>
+                </>
+              )}
+              
+              {viewingRequest.type === 'internal' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+                    <input
+                      type="text"
+                      value={editRequestData.location || ''}
+                      onChange={(e) => setEditRequestData({...editRequestData, location: e.target.value})}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Training Date</label>
+                    <input
+                      type="date"
+                      value={editRequestData.trainingDate?.split('T')[0] || ''}
+                      onChange={(e) => setEditRequestData({...editRequestData, trainingDate: e.target.value})}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                <textarea
+                  value={editRequestData.notes || ''}
+                  onChange={(e) => setEditRequestData({...editRequestData, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  placeholder="Add any notes..."
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowEditRequestModal(false);
+                  setEditRequestData({});
+                }}
+                className="px-4 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEditedRequest}
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 right-4 z-[70] animate-slide-up">
+          <div className={`px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 ${
+            toastMessage.includes('denied') || toastMessage.includes('Failed')
+              ? 'bg-red-500 text-white'
+              : 'bg-green-500 text-white'
+          }`}>
+            {toastMessage.includes('denied') || toastMessage.includes('Failed') ? (
+              <XIcon size={20} />
+            ) : (
+              <CheckIcon size={20} />
+            )}
+            <span className="font-medium">{toastMessage}</span>
           </div>
         </div>
       )}
