@@ -93,6 +93,7 @@ const TrainingRequestFilter: React.FC = () => {
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [nextApproverId, setNextApproverId] = useState<string>('');
   
   // Edit request modal states
   const [showEditRequestModal, setShowEditRequestModal] = useState(false);
@@ -583,6 +584,7 @@ const TrainingRequestFilter: React.FC = () => {
   const handleApprovalAction = (action: 'approve' | 'deny') => {
     setApprovalAction(action);
     setApprovalNotes('');
+    setNextApproverId('');
     setShowApprovalModal(true);
   };
   
@@ -638,10 +640,22 @@ const TrainingRequestFilter: React.FC = () => {
         if (viewingRequest.status === 'pending' || viewingRequest.status === 'submitted') {
           updateData.step1_approval_date = new Date().toISOString();
           updateData.supervisor_approval_date = new Date().toISOString();
+          // Set next approver (step 2) if selected
+          if (nextApproverId) {
+            updateData.step2_id = nextApproverId;
+          }
         } else if (viewingRequest.status === 'supervisor_review') {
           updateData.step2_approval_date = new Date().toISOString();
+          // Set next approver (step 3) if selected
+          if (nextApproverId) {
+            updateData.step3_id = nextApproverId;
+          }
         } else if (viewingRequest.status === 'admin_approval') {
           updateData.step3_approval_date = new Date().toISOString();
+          // Set next approver (step 4) if selected
+          if (nextApproverId) {
+            updateData.step4_id = nextApproverId;
+          }
         }
       }
       
@@ -1522,6 +1536,31 @@ const TrainingRequestFilter: React.FC = () => {
                 </div>
               </div>
               
+              {/* Next Approver Dropdown - Only show when approving and not final approval */}
+              {approvalAction === 'approve' && user?.role !== 'administrator' && user?.role !== 'training_coordinator' && user?.rank !== 'Chief' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Select Next Approver
+                  </label>
+                  <select
+                    value={nextApproverId}
+                    onChange={(e) => setNextApproverId(e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                  >
+                    <option value="">-- Select Next Approver --</option>
+                    {allUsers
+                      .filter(u => (u.role === 'supervisor' || u.role === 'administrator' || u.role === 'training_coordinator') && u.id !== user?.id && u.id !== viewingRequest?.userId)
+                      .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
+                      .map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.lastName}, {u.firstName} - {u.rank || u.role}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">Select who should review this request next</p>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   {approvalAction === 'approve' ? 'Notes (optional)' : 'Reason for Denial'}
@@ -1543,6 +1582,7 @@ const TrainingRequestFilter: React.FC = () => {
                   setShowApprovalModal(false);
                   setApprovalAction(null);
                   setApprovalNotes('');
+                  setNextApproverId('');
                 }}
                 className="px-4 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
                 disabled={isProcessingApproval}

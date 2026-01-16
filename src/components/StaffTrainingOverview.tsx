@@ -633,6 +633,7 @@ const StaffTrainingOverview: React.FC = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Training Completed</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor Review</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate Submitted</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPT Hours</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                   </tr>
@@ -677,6 +678,19 @@ const StaffTrainingOverview: React.FC = () => {
                                           <a href={training.certificateFileUrl} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:text-blue-800">
                                             <EyeIcon className="w-4 h-4 inline-block" /> View
                                           </a>
+                                        )}
+                                      </td>
+                                      {/* Status Column - Green checkmark when all complete */}
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        {training.trainingCompleted && training.supervisorOverviewCompleted && training.certificateSubmitted ? (
+                                          <div className="flex items-center gap-2">
+                                            <CheckCircleIcon className="w-6 h-6 text-green-500" />
+                                            <span className="text-green-600 font-medium">Complete</span>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-amber-600 font-medium">Pending</span>
+                                          </div>
                                         )}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
