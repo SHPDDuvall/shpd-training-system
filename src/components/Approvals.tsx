@@ -259,23 +259,42 @@ const Approvals: React.FC = () => {
 
   // Filter standard requests based on user role
   const pendingRequests = allRequests.filter(r => {
+    // Skip already completed requests
+    if (r.status === 'approved' || r.status === 'denied' || r.status === 'completed') {
+      return false;
+    }
+
     if (user?.role === 'supervisor') {
       // Show requests where the user is explicitly assigned as an approver in the 5-step chain
+      // Check based on current status which step should be active
       const isAssignedApprover = 
-        (r.status === 'submitted' && r.step1Id === user.id) ||
+        // Step 1: Initial submission - first approver reviews
+        ((r.status === 'submitted' || r.status === 'pending') && r.step1Id === user.id) ||
+        // Step 2: After step 1 approval - second approver reviews
         (r.status === 'supervisor_review' && r.step2Id === user.id) ||
-        (r.status === 'admin_approval' && r.step3Id === user.id);
+        // Step 3: After step 2 approval - third approver reviews
+        (r.status === 'admin_approval' && r.step3Id === user.id) ||
+        // Also check if user is assigned to any step for 'pending' status (legacy/transition)
+        (r.status === 'pending' && (
+          r.step1Id === user.id || 
+          r.step2Id === user.id || 
+          r.step3Id === user.id ||
+          r.step4Id === user.id ||
+          r.step5Id === user.id
+        ));
 
       // Fallback: Show requests from officers this supervisor oversees (legacy support)
+      // This handles requests that don't have step IDs assigned yet
       const requestingUser = allUsers.find(u => u.id === r.userId);
       const isMySupervisee = requestingUser?.supervisorId === user.id;
-      const isInSupervisorStatus = r.status === 'submitted' || r.status === 'supervisor_review';
+      const isInPendingStatus = r.status === 'submitted' || r.status === 'supervisor_review' || r.status === 'pending';
+      const hasNoStepAssignments = !r.step1Id && !r.step2Id && !r.step3Id;
       
-      return isAssignedApprover || (isMySupervisee && isInSupervisorStatus);
+      return isAssignedApprover || (isMySupervisee && isInPendingStatus && hasNoStepAssignments);
     }
     if (user?.role === 'administrator' || user?.role === 'training_coordinator') {
       // Administrators and Training Coordinators see ALL pending requests at any status
-      return r.status !== 'approved' && r.status !== 'denied' && r.status !== 'completed';
+      return true;
     }
     return false;
   });

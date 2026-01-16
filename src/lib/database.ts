@@ -1405,12 +1405,20 @@ export const internalTrainingService = {
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided (primary approver)
-    // Note: supervisor_ids column doesn't exist in the database, so we only use the first approver
+    // Add supervisor_id if provided (primary approver) - for legacy compatibility
     if (request.supervisorIds && request.supervisorIds.length > 0) {
       insertData.supervisor_id = request.supervisorIds[0];
+      
+      // Populate the 5-step approval chain with selected approvers
+      // This ensures supervisors see requests assigned to them
+      if (request.supervisorIds[0]) insertData.step1_id = request.supervisorIds[0];
+      if (request.supervisorIds[1]) insertData.step2_id = request.supervisorIds[1];
+      if (request.supervisorIds[2]) insertData.step3_id = request.supervisorIds[2];
+      if (request.supervisorIds[3]) insertData.step4_id = request.supervisorIds[3];
+      if (request.supervisorIds[4]) insertData.step5_id = request.supervisorIds[4];
     } else if (request.supervisorId) {
       insertData.supervisor_id = request.supervisorId;
+      insertData.step1_id = request.supervisorId; // Also set as step 1 approver
     }
     
     const { data, error } = await supabase
@@ -1582,17 +1590,25 @@ export const externalTrainingService = {
       location: request.location,
       cost_estimate: request.costEstimate,
       justification: request.justification,
-      status: 'pending',
+      status: 'pending', // Database constraint only allows 'pending' as initial status
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
     };
     
-    // Add supervisor_id if provided (primary approver)
-    // Note: supervisor_ids column doesn't exist in the database, so we only use the first approver
+    // Add supervisor_id if provided (primary approver) - for legacy compatibility
     if (request.supervisorIds && request.supervisorIds.length > 0) {
       insertData.supervisor_id = request.supervisorIds[0];
+      
+      // Populate the 5-step approval chain with selected approvers
+      // This ensures supervisors see requests assigned to them
+      if (request.supervisorIds[0]) insertData.step1_id = request.supervisorIds[0];
+      if (request.supervisorIds[1]) insertData.step2_id = request.supervisorIds[1];
+      if (request.supervisorIds[2]) insertData.step3_id = request.supervisorIds[2];
+      if (request.supervisorIds[3]) insertData.step4_id = request.supervisorIds[3];
+      if (request.supervisorIds[4]) insertData.step5_id = request.supervisorIds[4];
     } else if (request.supervisorId) {
       insertData.supervisor_id = request.supervisorId;
+      insertData.step1_id = request.supervisorId; // Also set as step 1 approver
     }
     
     const { data, error } = await supabase
