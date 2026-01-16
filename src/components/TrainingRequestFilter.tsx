@@ -1536,8 +1536,8 @@ const TrainingRequestFilter: React.FC = () => {
                 </div>
               </div>
               
-              {/* Next Approver Dropdown - Only show when approving and not final approval */}
-              {approvalAction === 'approve' && user?.role !== 'administrator' && user?.role !== 'training_coordinator' && user?.rank !== 'Chief' && (
+              {/* Next Approver Dropdown - Show for all approvers */}
+              {approvalAction === 'approve' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Select Next Approver
