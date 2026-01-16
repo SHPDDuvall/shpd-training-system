@@ -258,17 +258,6 @@ const Approvals: React.FC = () => {
   });
 
   // Filter standard requests based on user role
-  // DEBUG: Log all requests and user info
-  console.log('DEBUG Approvals - user:', user?.id, user?.role, user?.badgeNumber);
-  console.log('DEBUG Approvals - allRequests count:', allRequests.length);
-  if (allRequests.length > 0) {
-    console.log('DEBUG Approvals - sample request step1Id:', allRequests[0]?.step1Id);
-  }
-  
-  // Log requests where current user is step1Id
-  const userStep1Requests = allRequests.filter(r => r.step1Id === user?.id);
-  console.log('DEBUG Approvals - requests where user is step1Id:', userStep1Requests.length);
-
   const pendingRequests = allRequests.filter(r => {
     // Skip already completed requests
     if (r.status === 'approved' || r.status === 'denied' || r.status === 'completed') {
@@ -276,9 +265,9 @@ const Approvals: React.FC = () => {
     }
 
     if (user?.role === 'supervisor') {
-      // Show requests where the user is explicitly assigned as an approver in the 5-step chain
-      // Check based on current status which step should be active
-      const isAssignedApprover = 
+      // Show requests where the user is explicitly assigned as an approver
+      // Check step IDs first (5-step approval chain)
+      const isAssignedToStep = 
         // Step 1: Initial submission - first approver reviews
         ((r.status === 'submitted' || r.status === 'pending') && r.step1Id === user.id) ||
         // Step 2: After step 1 approval - second approver reviews
@@ -294,14 +283,20 @@ const Approvals: React.FC = () => {
           r.step5Id === user.id
         ));
 
+      // IMPORTANT: Also check supervisorId field (used when step IDs are not set)
+      // This is the primary field used for approver assignment in external training requests
+      const isAssignedViaSupervisorId = 
+        (r.status === 'pending' || r.status === 'submitted') && 
+        r.supervisorId === user.id;
+
       // Fallback: Show requests from officers this supervisor oversees (legacy support)
-      // This handles requests that don't have step IDs assigned yet
+      // This handles requests that don't have any approver assigned
       const requestingUser = allUsers.find(u => u.id === r.userId);
       const isMySupervisee = requestingUser?.supervisorId === user.id;
       const isInPendingStatus = r.status === 'submitted' || r.status === 'supervisor_review' || r.status === 'pending';
-      const hasNoStepAssignments = !r.step1Id && !r.step2Id && !r.step3Id;
+      const hasNoApproverAssigned = !r.step1Id && !r.supervisorId;
       
-      return isAssignedApprover || (isMySupervisee && isInPendingStatus && hasNoStepAssignments);
+      return isAssignedToStep || isAssignedViaSupervisorId || (isMySupervisee && isInPendingStatus && hasNoApproverAssigned);
     }
     if (user?.role === 'administrator' || user?.role === 'training_coordinator') {
       // Administrators and Training Coordinators see ALL pending requests at any status
