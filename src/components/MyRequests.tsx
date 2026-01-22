@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { TrainingRequest, ChainOfCommandStep, User } from '@/types';
 import ChainOfCommand from '@/components/ChainOfCommand';
@@ -19,10 +19,16 @@ const MyRequests: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState<any>({});
   const [supervisors, setSupervisors] = useState<User[]>([]);
+  
+  // Resubmit form state
+  const [resubmitForm, setResubmitForm] = useState<any>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (allUsers) {
@@ -64,6 +70,51 @@ const MyRequests: React.FC = () => {
     setIsEditing(true);
   };
 
+  const handleResubmitClick = () => {
+    if (!selectedRequest) return;
+    
+    const isExternal = (selectedRequest as any).eventName !== undefined;
+    
+    if (isExternal) {
+      setResubmitForm({
+        eventName: (selectedRequest as any).eventName,
+        organization: (selectedRequest as any).organization,
+        startDate: (selectedRequest as any).startDate,
+        endDate: (selectedRequest as any).endDate,
+        location: selectedRequest.location,
+        costEstimate: (selectedRequest as any).costEstimate,
+        justification: (selectedRequest as any).justification,
+        notes: '',
+        supervisorId: selectedRequest.supervisorId,
+        resubmissionReason: '',
+      });
+    } else {
+      setResubmitForm({
+        courseName: (selectedRequest as any).courseName,
+        trainingDate: (selectedRequest as any).trainingDate,
+        location: selectedRequest.location,
+        instructor: (selectedRequest as any).instructor,
+        attendees: (selectedRequest as any).attendees || [],
+        notes: '',
+        supervisorId: selectedRequest.supervisorId,
+        resubmissionReason: '',
+      });
+    }
+    setAttachments([]);
+    setIsResubmitting(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRequest) return;
@@ -74,6 +125,40 @@ const MyRequests: React.FC = () => {
       if (success) {
         setIsEditing(false);
         setSelectedRequest(null);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest) return;
+
+    setIsSubmitting(true);
+    try {
+      // Create attachment names list for storage
+      const attachmentNames = attachments.map(f => f.name);
+      
+      // Update the request with new data and reset status
+      const resubmitData = {
+        ...resubmitForm,
+        status: 'submitted',
+        denialReason: null,
+        supervisorApprovalDate: null,
+        adminApprovalDate: null,
+        resubmittedDate: new Date().toISOString().split('T')[0],
+        resubmissionReason: resubmitForm.resubmissionReason,
+        attachments: attachmentNames,
+        previousDenialReason: selectedRequest.denialReason,
+      };
+      
+      const success = await updateRequest(selectedRequest.id, resubmitData);
+      if (success) {
+        setIsResubmitting(false);
+        setSelectedRequest(null);
+        setAttachments([]);
+        alert('Request has been resubmitted successfully!');
       }
     } finally {
       setIsSubmitting(false);
@@ -443,8 +528,253 @@ const MyRequests: React.FC = () => {
         </div>
       )}
 
+      {/* Resubmit Modal */}
+      {isResubmitting && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Resubmit Training Request</h2>
+                <p className="text-sm text-slate-600 mt-1">Update your request and add any supporting documents</p>
+              </div>
+              <button onClick={() => setIsResubmitting(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <XIcon size={20} className="text-slate-500" />
+              </button>
+            </div>
+            
+            {/* Previous Denial Reason */}
+            {selectedRequest.denialReason && (
+              <div className="mx-6 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h4 className="font-medium text-red-800 mb-1">Previous Denial Reason:</h4>
+                <p className="text-sm text-red-700">{selectedRequest.denialReason}</p>
+              </div>
+            )}
+            
+            <form onSubmit={handleResubmit} className="p-6 space-y-4">
+              {(selectedRequest as any).eventName !== undefined ? (
+                // External Training Fields
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={resubmitForm.eventName}
+                      onChange={e => setResubmitForm({...resubmitForm, eventName: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Organization</label>
+                    <input
+                      type="text"
+                      required
+                      value={resubmitForm.organization}
+                      onChange={e => setResubmitForm({...resubmitForm, organization: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={resubmitForm.startDate}
+                        onChange={e => setResubmitForm({...resubmitForm, startDate: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={resubmitForm.endDate}
+                        onChange={e => setResubmitForm({...resubmitForm, endDate: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Estimated Cost</label>
+                    <input
+                      type="number"
+                      required
+                      value={resubmitForm.costEstimate}
+                      onChange={e => setResubmitForm({...resubmitForm, costEstimate: parseFloat(e.target.value)})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Justification</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={resubmitForm.justification}
+                      onChange={e => setResubmitForm({...resubmitForm, justification: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                // Internal Training Fields
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Course Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={resubmitForm.courseName}
+                      onChange={e => setResubmitForm({...resubmitForm, courseName: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Training Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={resubmitForm.trainingDate}
+                      onChange={e => setResubmitForm({...resubmitForm, trainingDate: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Instructor</label>
+                    <input
+                      type="text"
+                      required
+                      value={resubmitForm.instructor}
+                      onChange={e => setResubmitForm({...resubmitForm, instructor: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </>
+              )}
+              
+              {/* Common Fields */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                <input
+                  type="text"
+                  required
+                  value={resubmitForm.location}
+                  onChange={e => setResubmitForm({...resubmitForm, location: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Supervisor/Approver</label>
+                <select
+                  required
+                  value={resubmitForm.supervisorId}
+                  onChange={e => setResubmitForm({...resubmitForm, supervisorId: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Select Approver</option>
+                  {supervisors.map(s => (
+                    <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.role})</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Resubmission Reason */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Reason for Resubmission <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Explain what changes you've made to address the denial reason..."
+                  value={resubmitForm.resubmissionReason}
+                  onChange={e => setResubmitForm({...resubmitForm, resubmissionReason: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              
+              {/* Attachments */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Supporting Documents (Optional)
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Upload any documents that support your resubmission (e.g., certificates, approvals, justifications)
+                </p>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  multiple
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-amber-500 hover:text-amber-600 transition-colors"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Click to upload files
+                  </span>
+                </button>
+                
+                {/* Attachment List */}
+                {attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                        <span className="text-sm text-slate-700 truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                        >
+                          <XIcon size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
+                <textarea
+                  rows={2}
+                  value={resubmitForm.notes}
+                  onChange={e => setResubmitForm({...resubmitForm, notes: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsResubmitting(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Resubmitting...' : 'Resubmit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Request Detail Modal */}
-      {selectedRequest && (
+      {selectedRequest && !isEditing && !isResubmitting && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-200">
@@ -500,6 +830,30 @@ const MyRequests: React.FC = () => {
                       <dd className="text-slate-800">{formatDate(selectedRequest.scheduledDate)}</dd>
                     </div>
                   )}
+                  {(selectedRequest as any).resubmittedDate && (
+                    <div className="flex justify-between">
+                      <dt className="text-slate-600">Resubmitted Date</dt>
+                      <dd className="text-slate-800">{formatDate((selectedRequest as any).resubmittedDate)}</dd>
+                    </div>
+                  )}
+                  {(selectedRequest as any).resubmissionReason && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <dt className="text-slate-600 mb-1">Resubmission Reason</dt>
+                      <dd className="text-slate-800">{(selectedRequest as any).resubmissionReason}</dd>
+                    </div>
+                  )}
+                  {(selectedRequest as any).attachments && (selectedRequest as any).attachments.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <dt className="text-slate-600 mb-1">Attachments</dt>
+                      <dd className="text-slate-800">
+                        {(selectedRequest as any).attachments.map((name: string, i: number) => (
+                          <span key={i} className="inline-block mr-2 mb-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            {name}
+                          </span>
+                        ))}
+                      </dd>
+                    </div>
+                  )}
                   {selectedRequest.notes && (
                     <div className="pt-2 border-t border-slate-200">
                       <dt className="text-slate-600 mb-1">Notes</dt>
@@ -511,6 +865,7 @@ const MyRequests: React.FC = () => {
             </div>
 
             <div className="p-6 border-t border-slate-200 flex gap-3">
+              {/* Edit button for submitted requests */}
               {selectedRequest.status === 'submitted' && selectedRequest.userId === user?.id && (
                 <button
                   onClick={handleEditClick}
@@ -520,9 +875,23 @@ const MyRequests: React.FC = () => {
                   Edit Request
                 </button>
               )}
+              
+              {/* Resubmit button for denied requests */}
+              {selectedRequest.status === 'denied' && selectedRequest.userId === user?.id && (
+                <button
+                  onClick={handleResubmitClick}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Resubmit Request
+                </button>
+              )}
+              
               <button
                 onClick={() => setSelectedRequest(null)}
-                className={`${selectedRequest.status === 'submitted' && selectedRequest.userId === user?.id ? 'flex-1' : 'w-full'} px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors`}
+                className={`${(selectedRequest.status === 'submitted' || selectedRequest.status === 'denied') && selectedRequest.userId === user?.id ? 'flex-1' : 'w-full'} px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors`}
               >
                 Close
               </button>
