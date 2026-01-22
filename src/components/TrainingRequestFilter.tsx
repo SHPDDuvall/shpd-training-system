@@ -1540,12 +1540,11 @@ const TrainingRequestFilter: React.FC = () => {
                 </div>
               </div>
               
-              {/* Next Approver Dropdown - Show for all approvers */}
-              {approvalAction === 'approve' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Select Next Approver
-                  </label>
+              {/* Next Approver Dropdown - Show for both approve and deny */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  {approvalAction === 'approve' ? 'Select Next Approver' : 'Forward to Another Approver (Optional)'}
+                </label>
                   <select
                     value={nextApproverId}
                     onChange={(e) => setNextApproverId(e.target.value)}
@@ -1561,9 +1560,12 @@ const TrainingRequestFilter: React.FC = () => {
                         </option>
                       ))}
                   </select>
-                  <p className="text-xs text-slate-500 mt-1">Select who should review this request next</p>
-                </div>
-              )}
+                <p className="text-xs text-slate-500 mt-1">
+                  {approvalAction === 'approve' 
+                    ? 'Select who should review this request next' 
+                    : 'Optionally forward to another approver before final denial'}
+                </p>
+              </div>
               
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
