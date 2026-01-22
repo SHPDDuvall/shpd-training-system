@@ -8,7 +8,6 @@ import Header from '@/components/Header';
 import Dashboard from '@/components/Dashboard';
 import TrainingList from '@/components/TrainingList';
 import MyRequests from '@/components/MyRequests';
-import ChainOfCommand from '@/components/ChainOfCommand';
 import Profile from '@/components/Profile';
 import Approvals from '@/components/Approvals';
 import AdminPanel from '@/components/AdminPanel';
@@ -20,15 +19,24 @@ import InternalTrainingForm from '@/components/InternalTrainingForm';
 import ExternalTrainingForm from '@/components/ExternalTrainingForm';
 import TrainingRequestFilter from '@/components/TrainingRequestFilter';
 
+
+
+
 const MainApp: React.FC = () => {
   const { isAuthenticated, user, allUsers } = useAuth();
   const { sidebarOpen, toggleSidebar } = useAppContext();
   const isMobile = useIsMobile();
   const [currentView, setCurrentView] = useState('dashboard');
 
+
+
+
   if (!isAuthenticated) {
     return <LoginPage onLogin={() => {}} />;
   }
+
+
+
 
   const renderView = () => {
     switch (currentView) {
@@ -42,21 +50,6 @@ const MainApp: React.FC = () => {
         return <ExternalTrainingForm />;
       case 'requests':
         return <MyRequests />;
-      case 'chain':
-        // This view is for general chain of command info, but the component needs a request.
-        // For now, we'll show a placeholder or redirect, but to fix the error, we need to pass props.
-        return (
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Chain of Command Tracker</h2>
-            <p className="text-slate-600">Please select a specific training request from "My Requests" to view its approval chain.</p>
-            <button 
-              onClick={() => setCurrentView('requests')}
-              className="mt-4 px-6 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold rounded-lg transition-colors"
-            >
-              Go to My Requests
-            </button>
-          </div>
-        );
       case 'profile':
         return <Profile />;
       case 'approvals':
@@ -68,44 +61,3 @@ const MainApp: React.FC = () => {
       case 'import':
         return <ImportData />;
       case 'accounting':
-        return <Accounting />;
-      case 'reports':
-        return <ReportingDashboard />;
-      case 'request-filter':
-        return <TrainingRequestFilter />;
-      default:
-        return <Dashboard onViewChange={setCurrentView} />;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <Sidebar
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        isOpen={sidebarOpen}
-        onToggle={toggleSidebar}
-      />
-      <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
-      <main
-        className={`pt-16 min-h-screen transition-all duration-300 ${
-          sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
-        }`}
-      >
-        <div className="p-4 lg:p-6">
-          {renderView()}
-        </div>
-      </main>
-    </div>
-  );
-};
-
-const AppLayout: React.FC = () => {
-  return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
-  );
-};
-
-export default AppLayout;
