@@ -876,8 +876,9 @@ const MyRequests: React.FC = () => {
                 </button>
               )}
               
-              {/* Resubmit button for denied requests */}
-              {selectedRequest.status === 'denied' && selectedRequest.userId === user?.id && (
+              {/* Resubmit button for denied requests - available to ALL users */}
+              {/* Resubmit button available to ALL users for denied requests */}
+              {selectedRequest.status === 'denied' && (
                 <button
                   onClick={handleResubmitClick}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
