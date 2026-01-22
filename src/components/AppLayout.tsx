@@ -19,24 +19,15 @@ import InternalTrainingForm from '@/components/InternalTrainingForm';
 import ExternalTrainingForm from '@/components/ExternalTrainingForm';
 import TrainingRequestFilter from '@/components/TrainingRequestFilter';
 
-
-
-
 const MainApp: React.FC = () => {
   const { isAuthenticated, user, allUsers } = useAuth();
   const { sidebarOpen, toggleSidebar } = useAppContext();
   const isMobile = useIsMobile();
   const [currentView, setCurrentView] = useState('dashboard');
 
-
-
-
   if (!isAuthenticated) {
     return <LoginPage onLogin={() => {}} />;
   }
-
-
-
 
   const renderView = () => {
     switch (currentView) {
@@ -61,3 +52,44 @@ const MainApp: React.FC = () => {
       case 'import':
         return <ImportData />;
       case 'accounting':
+        return <Accounting />;
+      case 'reports':
+        return <ReportingDashboard />;
+      case 'request-filter':
+        return <TrainingRequestFilter />;
+      default:
+        return <Dashboard onViewChange={setCurrentView} />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <Sidebar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        isOpen={sidebarOpen}
+        onToggle={toggleSidebar}
+      />
+      <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+      <main
+        className={`pt-16 min-h-screen transition-all duration-300 ${
+          sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
+        }`}
+      >
+        <div className="p-4 lg:p-6">
+          {renderView()}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+const AppLayout: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
+};
+
+export default AppLayout;
