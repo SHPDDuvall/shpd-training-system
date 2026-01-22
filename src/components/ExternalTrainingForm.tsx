@@ -33,6 +33,7 @@ const ExternalTrainingForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
   const [supervisors, setSupervisors] = useState<User[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   useEffect(() => {
     loadData();
@@ -69,6 +70,34 @@ const ExternalTrainingForm: React.FC = () => {
         return [...prev, approverId];
       }
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,6 +137,16 @@ const ExternalTrainingForm: React.FC = () => {
       // Use the first selected approver as the primary supervisor for backward compatibility
       const primarySupervisorId = selectedApproverIds[0];
       
+      // Convert attachments to base64 for storage
+      const attachmentData = await Promise.all(
+        attachments.map(async (file) => ({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: await fileToBase64(file),
+        }))
+      );
+      
       console.log('Calling externalTrainingService.create');
       const newRequest = await externalTrainingService.create({
         userId: user.id,
@@ -121,6 +160,7 @@ const ExternalTrainingForm: React.FC = () => {
         notes,
         supervisorId: primarySupervisorId,
         supervisorIds: selectedApproverIds,
+        attachments: attachmentData,
       });
       
       console.log('externalTrainingService.create result:', newRequest);
@@ -162,7 +202,7 @@ const ExternalTrainingForm: React.FC = () => {
               recipientEmail: approver.email,
               recipientName: `${approver.firstName} ${approver.lastName}`,
               subject: `New External Training Request Requires Your Approval: ${eventName}`,
-              body: `A new external training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
+              body: `A new external training request has been submitted and requires YOUR review.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\nAttachments: ${attachments.length} file(s)\n\nPlease log in to the Training Management System to review and approve/deny this request.`,
               senderName: 'SHPD Training System',
             });
             console.log('Email notification sent to approver:', approver.email);
@@ -190,7 +230,7 @@ const ExternalTrainingForm: React.FC = () => {
               recipientEmail: coordinator.email,
               recipientName: `${coordinator.firstName} ${coordinator.lastName}`,
               subject: `[Training Coordinator] New External Training Request: ${eventName}`,
-              body: `A new external training request has been submitted.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\n\nPlease log in to the Training Management System to review this request.`,
+              body: `A new external training request has been submitted.\n\nRequester: ${user.firstName} ${user.lastName} (#${user.badgeNumber})\nEvent: ${eventName}\nOrganization: ${organization}\nDates: ${startDate} to ${endDate}\nLocation: ${location}\nEstimated Cost: $${parseFloat(costEstimate) || 0}\nAttachments: ${attachments.length} file(s)\n\nPlease log in to the Training Management System to review this request.`,
               senderName: 'SHPD Training System',
             });
             console.log('Email notification sent to training coordinator:', coordinator.email);
@@ -218,6 +258,7 @@ const ExternalTrainingForm: React.FC = () => {
     setCostEstimate('');
     setJustification('');
     setNotes('');
+    setAttachments([]);
     // Reset approvers to user's assigned supervisor or empty
     setSelectedApproverIds(user?.supervisorId ? [user.supervisorId] : []);
     setShowForm(false);
@@ -468,6 +509,59 @@ const ExternalTrainingForm: React.FC = () => {
                     ? 'Select at least one approver for this request' 
                     : `${selectedApproverIds.length} approver(s) selected - all will be notified`}
                 </p>
+              </div>
+
+              {/* Supporting Documents / Attachments */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Supporting Documents
+                </label>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-amber-400 transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
+                    className="hidden"
+                    id="external-file-upload"
+                  />
+                  <label
+                    htmlFor="external-file-upload"
+                    className="flex flex-col items-center justify-center cursor-pointer py-4"
+                  >
+                    <svg className="w-10 h-10 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-sm font-medium text-slate-700">Click to upload files</span>
+                    <span className="text-xs text-slate-500 mt-1">PDF, DOC, DOCX, JPG, PNG, XLS, XLSX</span>
+                  </label>
+                </div>
+                
+                {/* Attached Files List */}
+                {attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">{file.name}</p>
+                            <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="p-1 hover:bg-red-100 rounded text-red-500"
+                        >
+                          <CloseIcon size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Additional Notes */}
