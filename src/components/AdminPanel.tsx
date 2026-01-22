@@ -1209,6 +1209,7 @@ const AdminPanel: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Role *</label>
                   <select name="role" value={newUser.role} onChange={handleAddUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white" required>
                     <option value="officer">Officer</option>
+                    <option value="staff">Staff</option>
                     <option value="supervisor">Supervisor</option>
                     <option value="accounting">Accounting</option>
                     <option value="training_coordinator">Training Coordinator</option>
@@ -1317,6 +1318,7 @@ const AdminPanel: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Role *</label>
                     <select name="role" value={editUserForm.role} onChange={handleEditUserInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white" required>
                       <option value="officer">Officer</option>
+                      <option value="staff">Staff</option>
                       <option value="supervisor">Supervisor</option>
                       <option value="accounting">Accounting</option>
                       <option value="training_coordinator">Training Coordinator</option>
@@ -1475,6 +1477,7 @@ const AdminPanel: React.FC = () => {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
               >
                 <option value="officer">Officer</option>
+                <option value="staff">Staff</option>
                 <option value="supervisor">Supervisor</option>
                 <option value="accounting">Accounting</option>
                 <option value="training_coordinator">Training Coordinator</option>
