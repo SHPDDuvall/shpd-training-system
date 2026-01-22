@@ -529,6 +529,7 @@ const TrainingRequestFilter: React.FC = () => {
   };
   
   // Check if user can approve/deny this request
+  // ALL supervisors, administrators, training coordinators, and chiefs can approve ANY request
   const canApproveRequest = (request: CombinedRequest): boolean => {
     if (!user) return false;
     
@@ -537,7 +538,12 @@ const TrainingRequestFilter: React.FC = () => {
       return true;
     }
     
-    // Check if user is the assigned supervisor
+    // ALL supervisors can approve ANY request
+    if (user.role === 'supervisor') {
+      return true;
+    }
+    
+    // Check if user is the assigned supervisor (for non-supervisor roles)
     if (request.supervisorId === user.id) {
       return true;
     }
@@ -552,18 +558,11 @@ const TrainingRequestFilter: React.FC = () => {
       return true;
     }
     
-    // Supervisors can approve requests from their supervisees
-    if (user.role === 'supervisor') {
-      const requester = allUsers.find(u => u.id === request.userId);
-      if (requester && requester.supervisorId === user.id) {
-        return true;
-      }
-    }
-    
     return false;
   };
   
-  // Check if user can edit this request (owner with pending status)
+  // Check if user can edit this request
+  // ALL supervisors, administrators, and training coordinators can edit requests
   const canEditRequest = (request: CombinedRequest): boolean => {
     if (!user) return false;
     
@@ -574,6 +573,11 @@ const TrainingRequestFilter: React.FC = () => {
     
     // Admins and Training Coordinators can always edit
     if (user.role === 'administrator' || user.role === 'training_coordinator') {
+      return true;
+    }
+    
+    // ALL supervisors can edit requests they can approve
+    if (user.role === 'supervisor') {
       return true;
     }
     
