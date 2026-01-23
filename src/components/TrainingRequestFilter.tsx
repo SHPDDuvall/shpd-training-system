@@ -1748,6 +1748,82 @@ const TrainingRequestFilter: React.FC = () => {
                   placeholder="Add any notes..."
                 />
               </div>
+              
+              {/* Existing Attachments */}
+              {viewingRequest.originalData?.attachments && viewingRequest.originalData.attachments.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Current Attachments</label>
+                  <div className="space-y-2">
+                    {viewingRequest.originalData.attachments.map((attachment: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          <span className="text-sm text-slate-700">{attachment.name || attachment.fileName || `Attachment ${index + 1}`}</span>
+                        </div>
+                        {attachment.url && (
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-600 text-sm"
+                          >
+                            View
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Upload New Attachments */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Add Supporting Documents</label>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setEditRequestData({...editRequestData, newAttachments: files});
+                    }}
+                    className="hidden"
+                    id="edit-attachment-upload"
+                  />
+                  <label htmlFor="edit-attachment-upload" className="cursor-pointer">
+                    <svg className="w-10 h-10 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-sm text-slate-600">Click to upload files</p>
+                    <p className="text-xs text-slate-500 mt-1">PDF, DOC, DOCX, JPG, PNG, XLS, XLSX</p>
+                  </label>
+                </div>
+                {editRequestData.newAttachments && editRequestData.newAttachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Files to upload:</p>
+                    {editRequestData.newAttachments.map((file: File, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                        <span className="text-sm text-slate-700">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFiles = editRequestData.newAttachments.filter((_: any, i: number) => i !== index);
+                            setEditRequestData({...editRequestData, newAttachments: newFiles});
+                          }}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
