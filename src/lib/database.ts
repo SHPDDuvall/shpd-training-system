@@ -1392,6 +1392,7 @@ export const internalTrainingService = {
     notes?: string;
     supervisorId?: string;
     supervisorIds?: string[];
+    attachments?: any[];
   }): Promise<InternalTrainingRequest | null> {
     const insertData: Record<string, unknown> = {
       user_id: request.userId,
@@ -1403,6 +1404,7 @@ export const internalTrainingService = {
       status: 'submitted',
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
+      attachments: request.attachments || null,
     };
     
     // Add supervisor_id if provided (primary approver) - for legacy compatibility
@@ -1593,6 +1595,7 @@ export const externalTrainingService = {
       status: 'pending', // Database constraint only allows 'pending' as initial status
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
+      attachments: request.attachments || null,
     };
     
     // Add supervisor_id if provided (primary approver) - for legacy compatibility
