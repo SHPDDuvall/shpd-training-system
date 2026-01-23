@@ -154,6 +154,8 @@ const TrainingRequestFilter: React.FC = () => {
           denialReason: r.denial_reason as string | undefined,
           createdAt: r.created_at as string,
           supervisorId: r.supervisor_id as string | undefined,
+          attachments: r.attachments as any[] | undefined,
+          supportingDocuments: r.supporting_documents as any[] | undefined,
         })));
       }
       
@@ -185,6 +187,8 @@ const TrainingRequestFilter: React.FC = () => {
           certificateFileUrl: r.certificate_file_url as string | undefined,
           fileName: r.file_name as string | undefined,
           sourceFile: r.sourcefile as string | undefined,
+          attachments: r.attachments as any[] | undefined,
+          supportingDocuments: r.supporting_documents as any[] | undefined,
         })));
       }
       
@@ -379,6 +383,25 @@ const TrainingRequestFilter: React.FC = () => {
   }, [filteredRequests]);
   
   const formatDate = (dateString: string) => {
+    // Handle dates in YYYY-MM-DD format to avoid timezone issues
+    if (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+    // Handle ISO date strings with time component
+    if (dateString && dateString.includes('T')) {
+      const datePart = dateString.split('T')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -1318,6 +1341,16 @@ const TrainingRequestFilter: React.FC = () => {
                 if (originalData.attachments && Array.isArray(originalData.attachments)) {
                   originalData.attachments.forEach((doc: any, idx: number) => {
                     requestDocuments.push({ name: doc.name || `Attachment ${idx + 1}`, url: doc.url || doc });
+                  });
+                }
+                if (originalData.supportingDocuments && Array.isArray(originalData.supportingDocuments)) {
+                  originalData.supportingDocuments.forEach((doc: any, idx: number) => {
+                    requestDocuments.push({ name: doc.name || `Supporting Document ${idx + 1}`, url: doc.url || doc });
+                  });
+                }
+                if (originalData.supporting_documents && Array.isArray(originalData.supporting_documents)) {
+                  originalData.supporting_documents.forEach((doc: any, idx: number) => {
+                    requestDocuments.push({ name: doc.name || `Supporting Document ${idx + 1}`, url: doc.url || doc });
                   });
                 }
                 
