@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
 ];
 
 const supervisorItems: NavItem[] = [
-  { id: 'approvals', label: 'Pending Approvals', icon: ApprovalIcon, roles: ['supervisor', 'administrator', 'training_coordinator'] },
+  // Pending Approvals removed - functionality now in View Details
 ];
 
 const adminItems: NavItem[] = [
