@@ -1582,6 +1582,7 @@ export const externalTrainingService = {
     notes?: string;
     supervisorId?: string;
     supervisorIds?: string[];
+    attachments?: Array<{name: string; type: string; size: number; data: string}>;
   }): Promise<ExternalTrainingRequest | null> {
     const insertData: Record<string, unknown> = {
       user_id: request.userId,
