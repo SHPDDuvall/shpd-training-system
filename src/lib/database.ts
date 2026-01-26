@@ -1404,7 +1404,7 @@ export const internalTrainingService = {
       status: 'submitted',
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
-      attachments: request.attachments || null,
+      // attachments: request.attachments || null, // Column doesn't exist in database yet
     };
     
     // Add supervisor_id if provided (primary approver) - for legacy compatibility
@@ -1596,7 +1596,7 @@ export const externalTrainingService = {
       status: 'pending', // Database constraint only allows 'pending' as initial status
       submitted_date: new Date().toISOString().split('T')[0],
       notes: request.notes || null,
-      attachments: request.attachments || null,
+      // attachments: request.attachments || null, // Column doesn't exist in database yet
     };
     
     // Add supervisor_id if provided (primary approver) - for legacy compatibility
