@@ -5,7 +5,7 @@ import { sendGeneralEmail } from '@/lib/emailService';
 import { supabase } from '@/lib/supabase';
 import { TrainingOpportunity, User, Platoon, PLATOON_OPTIONS } from '@/types';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
-import AttendanceTracking from '@/components/AttendanceTracking';
+
 import CustomTrainingRequestTab from '@/components/CustomTrainingRequestTab';
 import BudgetManagement from '@/components/BudgetManagement';
 import {
@@ -56,7 +56,7 @@ const AdminPanel: React.FC = () => {
   const { allRequests, allUsers, createUser, refreshUsers, updateUser, resetUserPassword, deleteUser } = useAuth();
   const [trainings, setTrainings] = useState<TrainingOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'training' | 'attendance' | 'custom' | 'budget'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'training' | 'custom' | 'budget'>('overview');
 
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -799,14 +799,7 @@ const AdminPanel: React.FC = () => {
         >
           Training Catalog
         </button>
-        <button
-          onClick={() => setActiveTab('attendance')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-            activeTab === 'attendance' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-          }`}
-        >
-          Attendance
-        </button>
+
         <button
           onClick={() => setActiveTab('custom')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
@@ -1150,9 +1143,7 @@ const AdminPanel: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'attendance' && (
-          <AttendanceTracking />
-        )}
+
 
         {activeTab === 'custom' && (
           <CustomTrainingRequestTab />

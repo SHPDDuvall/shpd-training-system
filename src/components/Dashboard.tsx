@@ -287,7 +287,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               </button>
             )}
             <button
-              onClick={() => onViewChange('approvals')}
+              onClick={() => onViewChange('request-filter')}
               className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
             >
               Review Now
