@@ -17,9 +17,10 @@ import NotificationsPanel from './NotificationsPanel';
 interface HeaderProps {
   onMenuClick: () => void;
   sidebarOpen: boolean;
+  onViewChange: (view: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, sidebarOpen }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, sidebarOpen, onViewChange }) => {
   const { user, notifications, unreadCount, markAsRead, markAllAsRead } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false);
@@ -213,7 +214,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, sidebarOpen }) => {
                           onClick={() => {
                             markAsRead(notification.id);
                             if (notification.link) {
-                              window.location.href = notification.link;
+                              onViewChange(notification.link);
+                              setShowNotifications(false);
                             }
                           }}
                           className={`p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors border-l-4 ${

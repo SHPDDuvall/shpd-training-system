@@ -70,7 +70,7 @@ const MainApp: React.FC = () => {
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
       />
-      <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+      <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} onViewChange={setCurrentView} />
       <main
         className={`pt-16 min-h-screen transition-all duration-300 ${
           sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'

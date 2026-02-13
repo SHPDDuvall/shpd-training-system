@@ -53,7 +53,7 @@ export async function generatePendingApprovalNotifications(
             title: 'Pending Approvals',
             message: `You have ${pendingCount} training request${pendingCount > 1 ? 's' : ''} awaiting your review.`,
             type: 'warning',
-            link: '/approvals',
+            link: 'request-filter',
           });
 
           if (notification) {
@@ -126,7 +126,7 @@ export async function generateTrainingDeadlineNotifications(): Promise<Notificat
             title: 'Training Reminder',
             message: `Your training "${training.title}" is scheduled in ${daysUntil} day${daysUntil > 1 ? 's' : ''} on ${trainingDate.toLocaleDateString()}.`,
             type: 'info',
-            link: '/training',
+            link: 'training',
           });
 
           if (notification) {
@@ -190,7 +190,7 @@ export async function generateCertificateExpirationNotifications(): Promise<Noti
           title: `${urgencyText}Certificate Expiring`,
           message: `Your certificate for "${cert.training_title}" expires in ${daysUntilExpiration} day${daysUntilExpiration > 1 ? 's' : ''} on ${expirationDate.toLocaleDateString()}.`,
           type: notificationType,
-          link: '/profile',
+          link: 'profile',
         });
 
         if (notification) {
@@ -229,7 +229,7 @@ export async function generateCertificateExpirationNotifications(): Promise<Noti
             title: 'Certificate Expired',
             message: `Your certificate for "${cert.training_title}" has expired. Please renew it as soon as possible.`,
             type: 'error',
-            link: '/profile',
+            link: 'profile',
           });
 
           if (notification) {
@@ -311,7 +311,7 @@ export async function generateBudgetWarningNotifications(
             title: 'Budget Warning',
             message: warningMessage,
             type: warningLevel,
-            link: '/accounting',
+            link: 'accounting',
           });
 
           if (notification) {
@@ -380,7 +380,7 @@ export async function generateRequestStatusNotification(
       title,
       message,
       type,
-      link: '/requests',
+      link: 'requests',
     });
 
     return !!notification;
