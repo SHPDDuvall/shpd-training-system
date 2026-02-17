@@ -1129,6 +1129,7 @@ const EmailComposer: React.FC = () => {
                     required
                   />
                 </div>
+                </div>
 
                 {/* Attachments Section */}
                 <div>
