@@ -1114,6 +1114,20 @@ const EmailComposer: React.FC = () => {
                     required
                   />
                 </div>
+
+                {/* Body/Message */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Message
+                  </label>
+                  <textarea
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    placeholder="Enter your message..."
+                    rows={8}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
+                    required
+                  />
                 </div>
 
                 {/* Attachments Section */}
