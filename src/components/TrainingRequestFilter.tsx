@@ -1490,8 +1490,7 @@ const TrainingRequestFilter: React.FC = () => {
                                     {doc.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{doc.type}</span>}
                                   </a>
                                 );
-                              })
-                              ))}
+                              })}
                             </div>
                           </div>
                         )}
