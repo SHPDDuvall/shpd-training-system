@@ -1359,22 +1359,33 @@ const TrainingRequestFilter: React.FC = () => {
                   originalData.attachments.forEach((doc: any, idx: number) => {
                     // Handle different attachment formats
                     let url = '';
+                    let name = '';
+                    
                     if (typeof doc === 'string') {
                       url = doc;
-                    } else if (doc.url) {
-                      url = doc.url;
-                    } else if (doc.fileUrl) {
-                      url = doc.fileUrl;
-                    } else if (doc.file_url) {
-                      url = doc.file_url;
+                      name = `Attachment ${idx + 1}`;
+                    } else {
+                      // Extract name
+                      name = doc.name || doc.fileName || doc.file_name || `Attachment ${idx + 1}`;
+                      
+                      // Extract URL - check various properties
+                      if (doc.url) {
+                        url = doc.url;
+                      } else if (doc.fileUrl) {
+                        url = doc.fileUrl;
+                      } else if (doc.file_url) {
+                        url = doc.file_url;
+                      } else if (doc.data) {
+                        // Base64 data - create a data URL
+                        url = `data:${doc.type || 'application/octet-stream'};base64,${doc.data}`;
+                      }
                     }
                     
-                    if (url) {
-                      requestDocuments.push({ 
-                        name: doc.name || doc.fileName || doc.file_name || `Attachment ${idx + 1}`, 
-                        url: url 
-                      });
-                    }
+                    // Always add the attachment, even if no URL (will be displayed as non-clickable)
+                    requestDocuments.push({ 
+                      name: name, 
+                      url: url || '#' 
+                    });
                   });
                 }
                 if (originalData.supportingDocuments && Array.isArray(originalData.supportingDocuments)) {
