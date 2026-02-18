@@ -1318,7 +1318,7 @@ const TrainingRequestFilter: React.FC = () => {
               {/* Documents/Attachments */}
               {(() => {
                 const originalData = viewingRequest.originalData as any;
-                const requestDocuments: {name: string; url: string; type?: string}[] = [];
+                const requestDocuments: {name: string; url: string; type?: string; data?: string; mimeType?: string}[] = [];
                 
                 // Collect documents from request data
                 if (originalData.certificateFileUrl) {
@@ -1360,6 +1360,8 @@ const TrainingRequestFilter: React.FC = () => {
                     // Handle different attachment formats
                     let url = '';
                     let name = '';
+                    let data = '';
+                    let mimeType = '';
                     
                     if (typeof doc === 'string') {
                       url = doc;
@@ -1376,15 +1378,19 @@ const TrainingRequestFilter: React.FC = () => {
                       } else if (doc.file_url) {
                         url = doc.file_url;
                       } else if (doc.data) {
-                        // Base64 data - create a data URL
-                        url = `data:${doc.type || 'application/octet-stream'};base64,${doc.data}`;
+                        // Base64 data - store for download
+                        data = doc.data;
+                        mimeType = doc.type || 'application/octet-stream';
+                        url = '#'; // Placeholder, will be handled by download function
                       }
                     }
                     
-                    // Always add the attachment, even if no URL (will be displayed as non-clickable)
+                    // Always add the attachment
                     requestDocuments.push({ 
                       name: name, 
-                      url: url || '#' 
+                      url: url || '#',
+                      data: data,
+                      mimeType: mimeType
                     });
                   });
                 }
@@ -1455,18 +1461,36 @@ const TrainingRequestFilter: React.FC = () => {
                           <div>
                             <p className="text-xs font-medium text-slate-500 uppercase mb-2">Request Documents</p>
                             <div className="space-y-2">
-                              {requestDocuments.map((doc, idx) => (
-                                <a
-                                  key={`req-${idx}`}
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  <DownloadIcon size={16} />
-                                  {doc.name}
-                                  {doc.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{doc.type}</span>}
-                                </a>
+                              {requestDocuments.map((doc, idx) => {
+                                const handleDownload = (e: React.MouseEvent) => {
+                                  if (doc.data && doc.mimeType) {
+                                    // Handle base64 download
+                                    e.preventDefault();
+                                    const link = document.createElement('a');
+                                    link.href = `data:${doc.mimeType};base64,${doc.data}`;
+                                    link.download = doc.name;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }
+                                  // If no data, let the default link behavior work
+                                };
+                                
+                                return (
+                                  <a
+                                    key={`req-${idx}`}
+                                    href={doc.url}
+                                    onClick={handleDownload}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  >
+                                    <DownloadIcon size={16} />
+                                    {doc.name}
+                                    {doc.type && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{doc.type}</span>}
+                                  </a>
+                                );
+                              })
                               ))}
                             </div>
                           </div>
