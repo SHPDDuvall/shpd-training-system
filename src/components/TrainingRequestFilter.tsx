@@ -1335,22 +1335,90 @@ const TrainingRequestFilter: React.FC = () => {
                 }
                 if (originalData.documents && Array.isArray(originalData.documents)) {
                   originalData.documents.forEach((doc: any, idx: number) => {
-                    requestDocuments.push({ name: doc.name || `Document ${idx + 1}`, url: doc.url || doc });
+                    // Handle different document formats
+                    let url = '';
+                    if (typeof doc === 'string') {
+                      url = doc;
+                    } else if (doc.url) {
+                      url = doc.url;
+                    } else if (doc.fileUrl) {
+                      url = doc.fileUrl;
+                    } else if (doc.file_url) {
+                      url = doc.file_url;
+                    }
+                    
+                    if (url) {
+                      requestDocuments.push({ 
+                        name: doc.name || doc.fileName || doc.file_name || `Document ${idx + 1}`, 
+                        url: url 
+                      });
+                    }
                   });
                 }
                 if (originalData.attachments && Array.isArray(originalData.attachments)) {
                   originalData.attachments.forEach((doc: any, idx: number) => {
-                    requestDocuments.push({ name: doc.name || `Attachment ${idx + 1}`, url: doc.url || doc });
+                    // Handle different attachment formats
+                    let url = '';
+                    if (typeof doc === 'string') {
+                      url = doc;
+                    } else if (doc.url) {
+                      url = doc.url;
+                    } else if (doc.fileUrl) {
+                      url = doc.fileUrl;
+                    } else if (doc.file_url) {
+                      url = doc.file_url;
+                    }
+                    
+                    if (url) {
+                      requestDocuments.push({ 
+                        name: doc.name || doc.fileName || doc.file_name || `Attachment ${idx + 1}`, 
+                        url: url 
+                      });
+                    }
                   });
                 }
                 if (originalData.supportingDocuments && Array.isArray(originalData.supportingDocuments)) {
                   originalData.supportingDocuments.forEach((doc: any, idx: number) => {
-                    requestDocuments.push({ name: doc.name || `Supporting Document ${idx + 1}`, url: doc.url || doc });
+                    // Handle different document formats
+                    let url = '';
+                    if (typeof doc === 'string') {
+                      url = doc;
+                    } else if (doc.url) {
+                      url = doc.url;
+                    } else if (doc.fileUrl) {
+                      url = doc.fileUrl;
+                    } else if (doc.file_url) {
+                      url = doc.file_url;
+                    }
+                    
+                    if (url) {
+                      requestDocuments.push({ 
+                        name: doc.name || doc.fileName || doc.file_name || `Supporting Document ${idx + 1}`, 
+                        url: url 
+                      });
+                    }
                   });
                 }
                 if (originalData.supporting_documents && Array.isArray(originalData.supporting_documents)) {
                   originalData.supporting_documents.forEach((doc: any, idx: number) => {
-                    requestDocuments.push({ name: doc.name || `Supporting Document ${idx + 1}`, url: doc.url || doc });
+                    // Handle different document formats
+                    let url = '';
+                    if (typeof doc === 'string') {
+                      url = doc;
+                    } else if (doc.url) {
+                      url = doc.url;
+                    } else if (doc.fileUrl) {
+                      url = doc.fileUrl;
+                    } else if (doc.file_url) {
+                      url = doc.file_url;
+                    }
+                    
+                    if (url) {
+                      requestDocuments.push({ 
+                        name: doc.name || doc.fileName || doc.file_name || `Supporting Document ${idx + 1}`, 
+                        url: url 
+                      });
+                    }
                   });
                 }
                 
